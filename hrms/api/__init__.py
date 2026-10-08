@@ -103,7 +103,6 @@ def get_hr_settings() -> dict:
 	return frappe._dict(
 		allow_employee_checkin_from_mobile_app=settings.allow_employee_checkin_from_mobile_app,
 		allow_geolocation_tracking=settings.allow_geolocation_tracking,
-		prevent_self_leave_approval=settings.prevent_self_leave_approval,
 		enable_multi_currency_expense_claim=settings.enable_multi_currency_expense_claim,
 	)
 
@@ -177,11 +176,10 @@ def get_holidays_for_calendar(employee: str, from_date: str, to_date: str) -> li
 @frappe.whitelist()
 def get_shift_requests(
 	employee: str,
-	approver_id: str | None = None,
 	for_approval: bool = False,
 	limit: int | None = None,
 ) -> list[dict]:
-	filters = get_filters("Shift Request", employee, approver_id, for_approval)
+	filters = get_filters("Shift Request", employee, for_approval=for_approval)
 	fields = [
 		"name",
 		"employee",
@@ -189,8 +187,6 @@ def get_shift_requests(
 		"shift_type",
 		"from_date",
 		"to_date",
-		"status",
-		"approver",
 		"docstatus",
 		"creation",
 	]
@@ -219,7 +215,7 @@ def get_attendance_requests(
 	for_approval: bool = False,
 	limit: int | None = None,
 ) -> list[dict]:
-	filters = get_filters("Attendance Request", employee, None, for_approval)
+	filters = get_filters("Attendance Request", employee, for_approval=for_approval)
 	fields = [
 		"name",
 		"reason",
@@ -254,64 +250,24 @@ def get_attendance_requests(
 def get_filters(
 	doctype: str,
 	employee: str,
-	approver_id: str | None = None,
 	for_approval: bool = False,
 ) -> dict:
 	filters = frappe._dict()
 	if for_approval:
-		filters.docstatus = 0
-		filters.employee = ("!=", employee)
+		filters.docstatus = ("!=", 2)
 
-		if workflow := get_workflow(doctype):
-			allowed_states = get_allowed_states_for_workflow(workflow, approver_id)
-			filters[workflow.workflow_state_field] = ("in", allowed_states)
-		elif doctype != "Attendance Request":
-			approver_field_map = {
-				"Shift Request": "approver",
-				"Leave Application": "leave_approver",
-				"Expense Claim": "expense_approver",
-			}
-			filters.status = "Open" if doctype == "Leave Application" else "Draft"
-			if approver_id:
-				filters[approver_field_map[doctype]] = approver_id
+		workflow = get_workflow(doctype)
+		workflow_state_field = get_workflow_state_field(doctype)
+		if workflow and workflow_state_field:
+			allowed_states = get_allowed_states_for_workflow(workflow, frappe.session.user)
+			filters[workflow_state_field] = ("in", allowed_states)
+		else:
+			filters.name = ("=", "")
 	else:
 		filters.docstatus = ("!=", 2)
 		filters.employee = employee
 
 	return filters
-
-
-@frappe.whitelist()
-def get_shift_request_approvers(employee: str) -> str | list[str]:
-	frappe.has_permission("Employee", "read", employee, throw=True)
-
-	shift_request_approver, department = frappe.get_cached_value(
-		"Employee",
-		employee,
-		["shift_request_approver", "department"],
-	)
-
-	department_approvers = []
-	if department:
-		frappe.has_permission("Department", "read", department, throw=True)
-		department_approvers = get_department_approvers(department, "shift_request_approver")
-		if not shift_request_approver:
-			shift_request_approver = frappe.db.get_value(
-				"Department Approver",
-				{"parent": department, "parentfield": "shift_request_approver", "idx": 1},
-				"approver",
-			)
-
-	shift_request_approver_name = frappe.db.get_value("User", shift_request_approver, "full_name", cache=True)
-
-	if shift_request_approver and shift_request_approver not in [
-		approver.name for approver in department_approvers
-	]:
-		department_approvers.insert(
-			0, {"name": shift_request_approver, "full_name": shift_request_approver_name}
-		)
-
-	return department_approvers
 
 
 @frappe.whitelist()
@@ -344,26 +300,28 @@ def get_shifts() -> list[dict[str, str]]:
 @frappe.whitelist()
 def get_leave_applications(
 	employee: str,
-	approver_id: str | None = None,
 	for_approval: bool = False,
 	limit: int | None = None,
 ) -> list[dict]:
-	filters = get_filters("Leave Application", employee, approver_id, for_approval)
+	filters = get_filters("Leave Application", employee, for_approval=for_approval)
 	fields = [
 		"name",
 		"posting_date",
 		"employee",
 		"employee_name",
 		"leave_type",
-		"status",
 		"from_date",
 		"to_date",
 		"half_day",
 		"half_day_date",
+		"half_day_period",
+		"half_day_2",
+		"half_day_date_2",
+		"half_day_period_2",
 		"description",
 		"total_leave_days",
 		"leave_balance",
-		"leave_approver",
+		"docstatus",
 		"posting_date",
 		"creation",
 	]
@@ -437,67 +395,6 @@ def get_holidays_for_employee(employee: str) -> list[dict]:
 
 
 @frappe.whitelist()
-def get_leave_approval_details(employee: str) -> dict:
-	frappe.has_permission("Employee", "read", employee, throw=True)
-	leave_approver, department = frappe.get_cached_value(
-		"Employee",
-		employee,
-		["leave_approver", "department"],
-	)
-
-	if not leave_approver and department:
-		frappe.has_permission("Department", "read", department, throw=True)
-		leave_approver = frappe.db.get_value(
-			"Department Approver",
-			{"parent": department, "parentfield": "leave_approvers", "idx": 1},
-			"approver",
-		)
-
-	leave_approver_name = frappe.db.get_value("User", leave_approver, "full_name", cache=True)
-	department_approvers = get_department_approvers(department, "leave_approvers")
-
-	if leave_approver and leave_approver not in [approver.name for approver in department_approvers]:
-		department_approvers.append({"name": leave_approver, "full_name": leave_approver_name})
-
-	return dict(
-		leave_approver=leave_approver,
-		leave_approver_name=leave_approver_name,
-		department_approvers=department_approvers,
-		is_mandatory=frappe.db.get_single_value(
-			"HR Settings", "leave_approver_mandatory_in_leave_application"
-		),
-	)
-
-
-def get_department_approvers(department: str, parentfield: str) -> list[str]:
-	if not department:
-		return []
-
-	department_details = frappe.db.get_value("Department", department, ["lft", "rgt"], as_dict=True)
-	departments = frappe.get_all(
-		"Department",
-		filters={
-			"lft": ("<=", department_details.lft),
-			"rgt": (">=", department_details.rgt),
-			"disabled": 0,
-		},
-		pluck="name",
-	)
-
-	Approver = frappe.qb.DocType("Department Approver")
-	User = frappe.qb.DocType("User")
-	department_approvers = (
-		frappe.qb.from_(User)
-		.join(Approver)
-		.on(Approver.approver == User.name)
-		.select(User.name.as_("name"), User.full_name.as_("full_name"))
-		.where((Approver.parent.isin(departments)) & (Approver.parentfield == parentfield))
-	).run(as_dict=True)
-
-	return department_approvers
-
-
-@frappe.whitelist()
 def get_leave_types(employee: str, date: str) -> list:
 	from hrms.hr.doctype.leave_application.leave_application import get_leave_details
 
@@ -514,20 +411,18 @@ def get_leave_types(employee: str, date: str) -> list:
 @frappe.whitelist()
 def get_expense_claims(
 	employee: str,
-	approver_id: str | None = None,
 	for_approval: bool = False,
 	limit: int | None = None,
 ) -> list[dict]:
-	filters = get_filters("Expense Claim", employee, approver_id, for_approval)
+	filters = get_filters("Expense Claim", employee, for_approval=for_approval)
 	fields = [
 		"`tabExpense Claim`.name",
 		"`tabExpense Claim`.posting_date",
 		"`tabExpense Claim`.employee",
 		"`tabExpense Claim`.employee_name",
 		"`tabExpense Claim`.currency",
-		"`tabExpense Claim`.approval_status",
 		"`tabExpense Claim`.status",
-		"`tabExpense Claim`.expense_approver",
+		"`tabExpense Claim`.docstatus",
 		"`tabExpense Claim`.total_claimed_amount",
 		"`tabExpense Claim`.posting_date",
 		"`tabExpense Claim`.company",
@@ -563,35 +458,26 @@ def get_expense_claim_summary() -> dict:
 
 	Claim = frappe.qb.DocType("Expense Claim")
 
-	pending_claims_case = (
-		frappe.qb.terms.Case().when(Claim.approval_status == "Draft", Claim.total_claimed_amount).else_(0)
-	)
+	pending_claims_case = frappe.qb.terms.Case().when(Claim.docstatus == 0, Claim.total_claimed_amount).else_(0)
 	sum_pending_claims = Sum(pending_claims_case).as_("total_pending_amount")
 
-	approved_claims_case = (
+	submitted_claims_case = (
+		frappe.qb.terms.Case().when(Claim.docstatus == 1, Claim.total_sanctioned_amount).else_(0)
+	)
+	sum_submitted_claims = Sum(submitted_claims_case).as_("total_submitted_amount")
+	total_claimed_case = (
 		frappe.qb.terms.Case()
-		.when(Claim.approval_status == "Approved", Claim.total_sanctioned_amount)
+		.when(Claim.docstatus.isin([0, 1]), Claim.total_claimed_amount)
 		.else_(0)
 	)
-	sum_approved_claims = Sum(approved_claims_case).as_("total_approved_amount")
-
-	approved_total_claimed_case = (
-		frappe.qb.terms.Case().when(Claim.approval_status == "Approved", Claim.total_claimed_amount).else_(0)
-	)
-	sum_approved_total_claimed = Sum(approved_total_claimed_case).as_("total_claimed_in_approved")
-
-	rejected_claims_case = (
-		frappe.qb.terms.Case().when(Claim.approval_status == "Rejected", Claim.total_claimed_amount).else_(0)
-	)
-	sum_rejected_claims = Sum(rejected_claims_case).as_("total_rejected_amount")
+	sum_total_claimed = Sum(total_claimed_case).as_("total_claimed_amount")
 
 	summary = (
 		frappe.qb.from_(Claim)
 		.select(
 			sum_pending_claims,
-			sum_approved_claims,
-			sum_rejected_claims,
-			sum_approved_total_claimed,
+			sum_submitted_claims,
+			sum_total_claimed,
 			Claim.company,
 		)
 		.where((Claim.docstatus != 2) & (Claim.employee == employee))
@@ -613,37 +499,6 @@ def get_expense_claim_types() -> list[dict]:
 	ClaimType = frappe.qb.DocType("Expense Claim Type")
 
 	return (frappe.qb.from_(ClaimType).select(ClaimType.name, ClaimType.description)).run(as_dict=True)
-
-
-@frappe.whitelist()
-def get_expense_approval_details(employee: str) -> dict:
-	frappe.has_permission("Employee", "read", employee, throw=True)
-	expense_approver, department = frappe.get_cached_value(
-		"Employee",
-		employee,
-		["expense_approver", "department"],
-	)
-
-	if not expense_approver and department:
-		frappe.has_permission("Department", "read", department, throw=True)
-		expense_approver = frappe.db.get_value(
-			"Department Approver",
-			{"parent": department, "parentfield": "expense_approvers", "idx": 1},
-			"approver",
-		)
-
-	expense_approver_name = frappe.db.get_value("User", expense_approver, "full_name", cache=True)
-	department_approvers = get_department_approvers(department, "expense_approvers")
-
-	if expense_approver and expense_approver not in [approver.name for approver in department_approvers]:
-		department_approvers.append({"name": expense_approver, "full_name": expense_approver_name})
-
-	return dict(
-		expense_approver=expense_approver,
-		expense_approver_name=expense_approver_name,
-		department_approvers=department_approvers,
-		is_mandatory=frappe.db.get_single_value("HR Settings", "expense_approver_mandatory_in_expense_claim"),
-	)
 
 
 # Employee Advance
@@ -696,17 +551,6 @@ def get_currency_symbols() -> dict:
 	currencies = (frappe.qb.from_(Currency).select(Currency.name, Currency.symbol)).run(as_dict=True)
 
 	return {currency.name: currency.symbol or currency.name for currency in currencies}
-
-
-@frappe.whitelist()
-def get_company_cost_center_and_expense_account(company: str) -> dict:
-	frappe.has_permission("Company", "read", company, throw=True)
-	return frappe.db.get_value(
-		"Company",
-		company,
-		["cost_center", "default_expense_claim_payable_account", "default_payroll_payable_account"],
-		as_dict=True,
-	)
 
 
 # Form View APIs
@@ -824,15 +668,7 @@ def get_workflow_state_field(doctype: str) -> str | None:
 	if not workflow_name:
 		return None
 
-	override_status, workflow_state_field = frappe.db.get_value(
-		"Workflow",
-		workflow_name,
-		["override_status", "workflow_state_field"],
-	)
-	# NOTE: checkbox labelled 'Don't Override Status' is named override_status hence the inverted logic
-	if not override_status:
-		return workflow_state_field
-	return None
+	return frappe.db.get_value("Workflow", workflow_name, "workflow_state_field")
 
 
 def get_allowed_states_for_workflow(workflow: dict, user_id: str) -> list[str]:

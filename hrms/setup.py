@@ -108,16 +108,9 @@ def get_custom_fields():
 				"insert_after": "disabled",
 			},
 			{
-				"fieldname": "payroll_cost_center",
-				"fieldtype": "Link",
-				"label": _("Payroll Cost Center"),
-				"options": "Cost Center",
-				"insert_after": "section_break_4",
-			},
-			{
 				"fieldname": "column_break_9",
 				"fieldtype": "Column Break",
-				"insert_after": "payroll_cost_center",
+				"insert_after": "section_break_4",
 			},
 			{
 				"description": _("Days for which Holidays are blocked for this department."),
@@ -127,34 +120,6 @@ def get_custom_fields():
 				"label": _("Leave Block List"),
 				"options": "Leave Block List",
 				"insert_after": "column_break_9",
-			},
-			{
-				"description": _("The first Approver in the list will be set as the default Approver."),
-				"fieldname": "approvers",
-				"fieldtype": "Section Break",
-				"label": _("Approvers"),
-				"insert_after": "leave_block_list",
-			},
-			{
-				"fieldname": "shift_request_approver",
-				"fieldtype": "Table",
-				"label": _("Shift Request Approver"),
-				"options": "Department Approver",
-				"insert_after": "approvers",
-			},
-			{
-				"fieldname": "leave_approvers",
-				"fieldtype": "Table",
-				"label": _("Leave Approver"),
-				"options": "Department Approver",
-				"insert_after": "shift_request_approver",
-			},
-			{
-				"fieldname": "expense_approvers",
-				"fieldtype": "Table",
-				"label": _("Expense Approver"),
-				"options": "Department Approver",
-				"insert_after": "leave_approvers",
 			},
 		],
 		"Designation": [
@@ -233,41 +198,6 @@ def get_custom_fields():
 				"insert_after": "health_insurance_provider",
 			},
 			{
-				"fieldname": "approvers_section",
-				"fieldtype": "Section Break",
-				"label": _("Approvers"),
-				"insert_after": "default_shift",
-			},
-			{
-				"fieldname": "expense_approver",
-				"fieldtype": "Link",
-				"label": _("Expense Approver"),
-				"options": "User",
-				"insert_after": "approvers_section",
-				"ignore_user_permissions": 1,
-			},
-			{
-				"fieldname": "leave_approver",
-				"fieldtype": "Link",
-				"label": _("Leave Approver"),
-				"options": "User",
-				"insert_after": "expense_approver",
-				"ignore_user_permissions": 1,
-			},
-			{
-				"fieldname": "column_break_45",
-				"fieldtype": "Column Break",
-				"insert_after": "leave_approver",
-			},
-			{
-				"fieldname": "shift_request_approver",
-				"fieldtype": "Link",
-				"label": _("Shift Request Approver"),
-				"options": "User",
-				"insert_after": "column_break_45",
-				"ignore_user_permissions": 1,
-			},
-			{
 				"fieldname": "employee_advance_account",
 				"fieldtype": "Link",
 				"label": _("Employee Advance Account"),
@@ -278,15 +208,6 @@ def get_custom_fields():
 				"fieldname": "salary_cb",
 				"fieldtype": "Column Break",
 				"insert_after": "employee_advance_account",
-			},
-			{
-				"fetch_from": "department.payroll_cost_center",
-				"fetch_if_empty": 1,
-				"fieldname": "payroll_cost_center",
-				"fieldtype": "Link",
-				"label": _("Payroll Cost Center"),
-				"options": "Cost Center",
-				"insert_after": "salary_cb",
 			},
 		],
 		"Project": [
@@ -334,12 +255,6 @@ def get_custom_fields():
 
 def make_fixtures():
 	records = [
-		# expense claim type
-		{"doctype": "Expense Claim Type", "name": _("Calls"), "expense_type": _("Calls")},
-		{"doctype": "Expense Claim Type", "name": _("Food"), "expense_type": _("Food")},
-		{"doctype": "Expense Claim Type", "name": _("Medical"), "expense_type": _("Medical")},
-		{"doctype": "Expense Claim Type", "name": _("Others"), "expense_type": _("Others")},
-		{"doctype": "Expense Claim Type", "name": _("Travel"), "expense_type": _("Travel")},
 		# vehicle service item
 		{"doctype": "Vehicle Service Item", "service_item": "Brake Oil"},
 		{"doctype": "Vehicle Service Item", "service_item": "Brake Pad"},
@@ -435,15 +350,6 @@ def setup_notifications():
 	records = [
 		{
 			"doctype": "Email Template",
-			"name": _("Leave Approval Notification"),
-			"response": response,
-			"subject": _("Leave Approval Notification"),
-			"owner": frappe.session.user,
-		}
-	]
-	records += [
-		{
-			"doctype": "Email Template",
 			"name": _("Leave Status Notification"),
 			"response": response,
 			"subject": _("Leave Status Notification"),
@@ -497,7 +403,6 @@ def setup_notifications():
 def update_hr_defaults():
 	hr_settings = frappe.get_doc("HR Settings")
 	hr_settings.emp_created_by = "Naming Series"
-	hr_settings.leave_approval_notification_template = _("Leave Approval Notification")
 	hr_settings.leave_status_notification_template = _("Leave Status Notification")
 
 	hr_settings.send_interview_reminder = 1
@@ -554,7 +459,6 @@ def get_post_install_patches():
 		"erpnext.patches.v13_0.set_company_in_leave_ledger_entry",
 		"erpnext.patches.v13_0.rename_stop_to_send_birthday_reminders",
 		"erpnext.patches.v13_0.set_training_event_attendance",
-		"erpnext.patches.v14_0.set_payroll_cost_centers",
 		"erpnext.patches.v13_0.update_employee_advance_status",
 		"erpnext.patches.v13_0.update_expense_claim_status_for_paid_advances",
 		"erpnext.patches.v14_0.delete_employee_transfer_property_doctype",
@@ -719,6 +623,15 @@ def append_docperms_to_user_type(docperms, doc):
 
 
 def update_select_perm_after_install():
+	add_permission("Expense Claim Type", "HR Manager")
+	update_permission_property(
+		"Expense Claim Type", "HR Manager", permlevel=0, ptype="delete", value=1
+	)
+	update_permission_property(
+		"Expense Claim Type", "HR User", permlevel=0, ptype="delete", value=0
+	)
+	frappe.clear_cache(doctype="Expense Claim Type")
+
 	if not frappe.flags.update_select_perm_after_migrate:
 		return
 

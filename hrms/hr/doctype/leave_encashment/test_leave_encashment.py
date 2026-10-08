@@ -462,7 +462,6 @@ def create_leave_encashment(**args):
 			"Company", "_Test Company", "default_payable_account"
 		)
 		leave_encashment.expense_account = args.expense_account or "Administrative Expenses - _TC"
-		leave_encashment.cost_center = args.cost_center or "Main - _TC"
 
 	if args.encashment_days:
 		leave_encashment.encashment_days = args.encashment_days

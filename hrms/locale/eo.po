@@ -2869,11 +2869,6 @@ msgstr "crwdns106614:0crwdne106614:0"
 msgid "Employee Checkin History"
 msgstr "crwdns151204:0crwdne151204:0"
 
-#. Name of a DocType
-#: hrms/payroll/doctype/employee_cost_center/employee_cost_center.json
-msgid "Employee Cost Center"
-msgstr "crwdns106618:0crwdne106618:0"
-
 #. Label of the details_section (Section Break) field in DocType 'Employee
 #. Onboarding'
 #. Label of the employee_details_tab (Tab Break) field in DocType 'Employee
@@ -7404,16 +7399,6 @@ msgstr "crwdns159660:0crwdne159660:0"
 #: hrms/payroll/doctype/payroll_correction_child/payroll_correction_child.json
 msgid "Payroll Correction Child"
 msgstr "crwdns159662:0crwdne159662:0"
-
-#: hrms/setup.py:111 hrms/setup.py:281
-msgid "Payroll Cost Center"
-msgstr "crwdns148908:0crwdne148908:0"
-
-#. Label of the section_break_17 (Section Break) field in DocType 'Salary
-#. Structure Assignment'
-#: hrms/payroll/doctype/salary_structure_assignment/salary_structure_assignment.json
-msgid "Payroll Cost Centers"
-msgstr "crwdns142080:0crwdne142080:0"
 
 #. Label of a shortcut in the HR Workspace
 #: hrms/hr/workspace/hr/hr.json

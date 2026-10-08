@@ -17,7 +17,7 @@
 					<!-- Status filter -->
 					<div
 						class="flex flex-col gap-1.5"
-						v-if="['status', 'approval_status'].includes(filter.fieldname)"
+					v-if="filter.fieldname === 'status'"
 					>
 						<div class="text-gray-800 font-semibold text-base">
 							{{ __(filter.label) }}

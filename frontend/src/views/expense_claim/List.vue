@@ -22,9 +22,7 @@ const EXPENSE_CLAIM_FIELDS = [
 	"`tabExpense Claim`.employee",
 	"`tabExpense Claim`.employee_name",
 	"`tabExpense Claim`.currency",
-	"`tabExpense Claim`.approval_status",
 	"`tabExpense Claim`.status",
-	"`tabExpense Claim`.expense_approver",
 	"`tabExpense Claim`.total_claimed_amount",
 	"`tabExpense Claim`.posting_date",
 	"`tabExpense Claim`.company",
@@ -34,16 +32,10 @@ const EXPENSE_CLAIM_FIELDS = [
 
 const FILTER_CONFIG = [
 	{
-		fieldname: "approval_status",
-		fieldtype: "Select",
-		label: __("Approval Status"),
-		options: ["Draft", "Approved", "Rejected"],
-	},
-	{
 		fieldname: "status",
 		fieldtype: "Select",
 		label: __("Status"),
-		options: ["Draft", "Paid", "Unpaid", "Rejected", "Submitted", "Cancelled"],
+		options: ["Draft", "Paid", "Partially Paid", "Unpaid", "Submitted", "Cancelled"],
 	},
 	{
 		fieldname: "employee",

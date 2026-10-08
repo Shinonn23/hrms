@@ -20,17 +20,16 @@
   "to_date",
   "half_day",
   "half_day_date",
+  "half_day_period",
+  "half_day_2",
+  "half_day_date_2",
+  "half_day_period_2",
   "total_leave_days",
   "column_break1",
   "description",
   "leave_balance",
-  "section_break_7",
-  "leave_approver",
-  "leave_approver_name",
   "follow_via_email",
-  "column_break_18",
   "posting_date",
-  "status",
   "sb_other_details",
   "salary_slip",
   "color",
@@ -126,7 +125,35 @@
    "depends_on": "eval:doc.half_day && doc.from_date && doc.to_date && (doc.from_date != doc.to_date)",
    "fieldname": "half_day_date",
    "fieldtype": "Date",
-   "label": "Half Day Date"
+   "label": "Half Day 1 Date"
+  },
+  {
+   "default": "Morning",
+   "depends_on": "eval:doc.half_day",
+   "fieldname": "half_day_period",
+   "fieldtype": "Select",
+   "label": "Half Day 1 Period",
+   "options": "Morning\nAfternoon"
+  },
+  {
+   "depends_on": "eval:doc.half_day && doc.from_date && doc.to_date && (doc.from_date != doc.to_date)",
+   "fieldname": "half_day_2",
+   "fieldtype": "Check",
+   "label": "Add Second Half Day"
+  },
+  {
+   "depends_on": "eval:doc.half_day_2 && doc.from_date && doc.to_date && (doc.from_date != doc.to_date)",
+   "fieldname": "half_day_date_2",
+   "fieldtype": "Date",
+   "label": "Half Day 2 Date"
+  },
+  {
+   "default": "Afternoon",
+   "depends_on": "eval:doc.half_day_2",
+   "fieldname": "half_day_period_2",
+   "fieldtype": "Select",
+   "label": "Half Day 2 Period",
+   "options": "Morning\nAfternoon"
   },
   {
    "fieldname": "total_leave_days",
@@ -147,38 +174,6 @@
    "fieldname": "description",
    "fieldtype": "Small Text",
    "label": "Reason"
-  },
-  {
-   "fieldname": "section_break_7",
-   "fieldtype": "Section Break",
-   "label": "Approval"
-  },
-  {
-   "fieldname": "leave_approver",
-   "fieldtype": "Link",
-   "label": "Leave Approver",
-   "options": "User"
-  },
-  {
-   "fieldname": "leave_approver_name",
-   "fieldtype": "Data",
-   "label": "Leave Approver Name",
-   "read_only": 1
-  },
-  {
-   "fieldname": "column_break_18",
-   "fieldtype": "Column Break"
-  },
-  {
-   "default": "Open",
-   "fieldname": "status",
-   "fieldtype": "Select",
-   "in_standard_filter": 1,
-   "label": "Status",
-   "no_copy": 1,
-   "options": "Open\nApproved\nRejected\nCancelled",
-   "permlevel": 1,
-   "reqd": 1
   },
   {
    "default": "Today",
@@ -288,11 +283,6 @@
    "write": 1
   },
   {
-   "permlevel": 1,
-   "read": 1,
-   "role": "All"
-  },
-  {
    "amend": 1,
    "cancel": 1,
    "create": 1,
@@ -316,31 +306,6 @@
    "role": "Leave Approver",
    "share": 1,
    "submit": 1,
-   "write": 1
-  },
-  {
-   "permlevel": 1,
-   "read": 1,
-   "report": 1,
-   "role": "Leave Approver",
-   "write": 1
-  },
-  {
-   "permlevel": 1,
-   "read": 1,
-   "report": 1,
-   "role": "HR User",
-   "write": 1
-  },
-  {
-   "email": 1,
-   "export": 1,
-   "permlevel": 1,
-   "print": 1,
-   "read": 1,
-   "report": 1,
-   "role": "HR Manager",
-   "share": 1,
    "write": 1
   }
  ],

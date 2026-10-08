@@ -32,8 +32,6 @@ class ShiftAssignmentTool(Document):
 		filters = [[d, "=", self.get(d)] for d in quick_filter_fields if self.get(d)]
 		filters += advanced_filters
 
-		if self.action == "Process Shift Requests":
-			return self.get_shift_requests(filters)
 		return self.get_employees_for_assigning_shift(filters)
 
 	def get_employees_for_assigning_shift(self, filters):
@@ -71,44 +69,6 @@ class ShiftAssignmentTool(Document):
 		query = query.where(Criterion.all(build_qb_match_conditions("Employee")))
 
 		return query.run(as_dict=True)
-
-	def get_shift_requests(self, filters):
-		Employee = frappe.qb.DocType("Employee")
-		ShiftRequest = frappe.qb.DocType("Shift Request")
-		query = (
-			frappe.qb.get_query(
-				Employee,
-				fields=[Employee.employee, Employee.employee_name],
-				filters=filters,
-			)
-			.inner_join(ShiftRequest)
-			.on(ShiftRequest.employee == Employee.name)
-			.select(
-				ShiftRequest.name,
-				ShiftRequest.shift_type,
-				ShiftRequest.from_date,
-				ShiftRequest.to_date,
-			)
-			.where(ShiftRequest.status == "Draft")
-		)
-
-		if self.shift_type_filter:
-			query = query.where(ShiftRequest.shift_type == self.shift_type_filter)
-		if self.approver:
-			query = query.where(ShiftRequest.approver == self.approver)
-		if self.from_date:
-			query = query.where((ShiftRequest.to_date >= self.from_date) | (ShiftRequest.to_date.isnull()))
-		if self.to_date:
-			query = query.where(ShiftRequest.from_date <= self.to_date)
-
-		query = query.where(Criterion.all(build_qb_match_conditions("Employee")))
-
-		data = query.run(as_dict=True)
-		for d in data:
-			d.employee_name = d.employee + ": " + d.employee_name
-			d.shift_request = get_link_to_form("Shift Request", d.name)
-
-		return data
 
 	def get_query_for_employees_with_shifts(self):
 		ShiftAssignment = frappe.qb.DocType("Shift Assignment")
@@ -249,59 +209,6 @@ class ShiftAssignmentTool(Document):
 		frappe.publish_realtime(
 			event,
 			message={"success": success, "failure": failure},
-			doctype="Shift Assignment Tool",
-			after_commit=True,
-		)
-
-	@frappe.whitelist(methods=["POST"])
-	def bulk_process_shift_requests(self, shift_requests: list, status: str):
-		if not shift_requests:
-			frappe.throw(
-				_("Please select at least one Shift Request to perform this action."),
-				title=_("No Shift Requests Selected"),
-			)
-
-		if len(shift_requests) <= 30:
-			return self._bulk_process_shift_requests(shift_requests, status)
-
-		frappe.enqueue(
-			self._bulk_process_shift_requests, timeout=3000, shift_requests=shift_requests, status=status
-		)
-		frappe.msgprint(
-			_("Processing of Shift Requests has been queued. It may take a few minutes."),
-			alert=True,
-			indicator="blue",
-		)
-
-	def _bulk_process_shift_requests(self, shift_requests: list, status: str):
-		success, failure = [], []
-		count = 0
-
-		for d in shift_requests:
-			try:
-				shift_request = frappe.get_doc("Shift Request", d["shift_request"])
-				shift_request.status = status
-				shift_request.save()
-				shift_request.submit()
-
-			except Exception:
-				frappe.log_error(
-					f"Bulk Processing - Processing failed for Shift Request {d['shift_request']}.",
-					reference_doctype="Shift Request",
-				)
-				failure.append(d["employee"])
-			else:
-				success.append(
-					{"doc": get_link_to_form("Shift Request", shift_request.name), "employee": d["employee"]}
-				)
-
-			count += 1
-			frappe.publish_progress(count * 100 / len(shift_requests), title=_("Processing Requests..."))
-
-		frappe.clear_messages()
-		frappe.publish_realtime(
-			"completed_bulk_shift_request_processing",
-			message={"success": success, "failure": failure, "for_processing": True},
 			doctype="Shift Assignment Tool",
 			after_commit=True,
 		)

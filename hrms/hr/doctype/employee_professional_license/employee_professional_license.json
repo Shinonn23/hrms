@@ -1,0 +1,43 @@
+{
+ "doctype": "DocType",
+ "name": "Employee Professional License",
+ "module": "HR",
+ "autoname": "hash",
+ "engine": "InnoDB",
+ "track_changes": 1,
+ "max_attachments": 1,
+ "make_attachments_public": 0,
+ "title_field": "license_number",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "field_order": [
+  "employee", "employee_name", "license_type", "license_number", "issuing_authority", "jurisdiction",
+  "issue_date", "no_expiry", "expiry_date", "license_document", "verification_status", "validity_status",
+  "review_comment", "reviewed_by", "reviewed_on", "reminder_90_days_sent_on", "reminder_30_days_sent_on", "reminder_7_days_sent_on"
+ ],
+ "fields": [
+  {"fieldname": "employee", "fieldtype": "Link", "label": "Employee", "options": "Employee", "reqd": 1, "in_list_view": 1, "in_standard_filter": 1, "search_index": 1},
+  {"fieldname": "employee_name", "fieldtype": "Data", "label": "Employee Name", "fetch_from": "employee.employee_name", "read_only": 1, "in_list_view": 1},
+  {"fieldname": "license_type", "fieldtype": "Link", "label": "License Type", "options": "Employee Professional License Type", "reqd": 1, "in_list_view": 1, "in_standard_filter": 1, "search_index": 1},
+  {"fieldname": "license_number", "fieldtype": "Data", "label": "License Number", "reqd": 1, "in_list_view": 1, "search_index": 1},
+  {"fieldname": "issuing_authority", "fieldtype": "Data", "label": "Issuing Authority", "fetch_from": "license_type.issuing_authority", "read_only": 1, "in_list_view": 1},
+  {"fieldname": "jurisdiction", "fieldtype": "Data", "label": "Jurisdiction", "fetch_from": "license_type.jurisdiction", "read_only": 1, "in_list_view": 1},
+  {"fieldname": "issue_date", "fieldtype": "Date", "label": "Issue Date", "reqd": 1},
+  {"fieldname": "no_expiry", "fieldtype": "Check", "label": "No Expiry", "default": "0"},
+  {"fieldname": "expiry_date", "fieldtype": "Date", "label": "Expiry Date", "depends_on": "eval:!doc.no_expiry", "mandatory_depends_on": "eval:!doc.no_expiry", "in_list_view": 1, "in_standard_filter": 1, "search_index": 1},
+  {"fieldname": "license_document", "fieldtype": "Attach", "label": "License Document", "make_attachment_public": 0},
+  {"fieldname": "verification_status", "fieldtype": "Select", "label": "Verification Status", "options": "Draft\nPending Review\nVerified\nChanges Requested", "default": "Draft", "read_only": 1, "in_list_view": 1, "in_standard_filter": 1},
+  {"fieldname": "validity_status", "fieldtype": "Select", "label": "Validity Status", "options": "Active\nExpiring Soon\nExpired\nNo Expiry", "read_only": 1, "in_list_view": 1, "in_standard_filter": 1},
+  {"fieldname": "review_comment", "fieldtype": "Small Text", "label": "Review Comment", "read_only": 1},
+  {"fieldname": "reviewed_by", "fieldtype": "Link", "label": "Reviewed By", "options": "User", "read_only": 1},
+  {"fieldname": "reviewed_on", "fieldtype": "Datetime", "label": "Reviewed On", "read_only": 1},
+  {"fieldname": "reminder_90_days_sent_on", "fieldtype": "Datetime", "label": "90 Day Reminder Sent On", "hidden": 1, "read_only": 1},
+  {"fieldname": "reminder_30_days_sent_on", "fieldtype": "Datetime", "label": "30 Day Reminder Sent On", "hidden": 1, "read_only": 1},
+  {"fieldname": "reminder_7_days_sent_on", "fieldtype": "Datetime", "label": "7 Day Reminder Sent On", "hidden": 1, "read_only": 1}
+ ],
+ "permissions": [
+  {"role": "HR Manager", "read": 1, "write": 1, "create": 1, "delete": 1, "report": 1, "export": 1, "print": 1, "email": 1, "share": 1},
+  {"role": "System Manager", "read": 1, "write": 1, "create": 1, "delete": 1, "report": 1, "export": 1, "print": 1, "email": 1, "share": 1},
+  {"role": "Employee", "read": 1, "write": 1, "create": 1}
+ ]
+}

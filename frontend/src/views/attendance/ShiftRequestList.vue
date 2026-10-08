@@ -24,18 +24,9 @@ const SHIFT_REQUEST_FIELDS = [
 	"shift_type",
 	"from_date",
 	"to_date",
-	"approver",
-	"status",
 	"docstatus",
 ]
-const STATUS_FILTER_OPTIONS = ["Draft", "Approved", "Rejected"]
 const FILTER_CONFIG = [
-	{
-		fieldname: "status",
-		fieldtype: "Select",
-		label: __("Status"),
-		options: STATUS_FILTER_OPTIONS,
-	},
 	{
 		fieldname: "shift_type",
 		fieldtype: "Link",

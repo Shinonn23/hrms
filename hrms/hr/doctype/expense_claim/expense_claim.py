@@ -6,7 +6,6 @@ import frappe
 from frappe import _
 from frappe.model.document import Document
 from frappe.model.mapper import get_mapped_doc
-from frappe.model.workflow import get_workflow_name
 from frappe.query_builder.functions import Sum
 from frappe.utils import cstr, flt, get_link_to_form, today
 
@@ -14,7 +13,7 @@ import erpnext
 from erpnext.accounts.doctype.repost_accounting_ledger.repost_accounting_ledger import (
 	validate_docs_for_voucher_types,
 )
-from erpnext.accounts.doctype.sales_invoice.sales_invoice import get_bank_cash_account
+from erpnext.accounts.doctype.payment_entry.payment_entry import get_bank_cash_account
 from erpnext.accounts.general_ledger import make_gl_entries
 from erpnext.accounts.utils import (
 	create_gain_loss_journal,
@@ -23,16 +22,7 @@ from erpnext.accounts.utils import (
 from erpnext.controllers.accounts_controller import AccountsController
 
 import hrms
-from hrms.hr.utils import set_employee_name, share_doc_with_approver, validate_active_employee
-from hrms.mixins.pwa_notifications import PWANotificationsMixin
-
-
-class InvalidExpenseApproverError(frappe.ValidationError):
-	pass
-
-
-class ExpenseApproverIdentityError(frappe.ValidationError):
-	pass
+from hrms.hr.utils import set_employee_name, validate_active_employee
 
 
 ROLES_ALLOWED_TO_CLAIM_FOR_OTHERS = {"HR User", "HR Manager", "Expense Approver"}
@@ -42,15 +32,55 @@ class MismatchError(frappe.ValidationError):
 	pass
 
 
-class ExpenseClaim(AccountsController, PWANotificationsMixin):
-	def onload(self):
-		self.set_onload(
-			"self_expense_approval_not_allowed",
-			frappe.db.get_single_value("HR Settings", "prevent_self_expense_approval"),
-		)
+class ExpenseClaim(AccountsController):
+	# begin: auto-generated types
+	# This code is auto-generated. Do not modify anything in this block.
 
-	def after_insert(self):
-		self.notify_approver()
+	from typing import TYPE_CHECKING
+
+	if TYPE_CHECKING:
+		from frappe.types import DF
+		from hrms.hr.doctype.expense_claim_advance.expense_claim_advance import ExpenseClaimAdvance
+		from hrms.hr.doctype.expense_claim_detail.expense_claim_detail import ExpenseClaimDetail
+		from hrms.hr.doctype.expense_taxes_and_charges.expense_taxes_and_charges import ExpenseTaxesandCharges
+
+		advances: DF.Table[ExpenseClaimAdvance]
+		amended_from: DF.Link | None
+		bank_or_cash_account: DF.Link | None
+		base_grand_total: DF.Currency
+		base_total_advance_amount: DF.Currency
+		base_total_claimed_amount: DF.Currency
+		base_total_sanctioned_amount: DF.Currency
+		base_total_taxes_and_charges: DF.Currency
+		clearance_date: DF.Date | None
+		company: DF.Link
+		currency: DF.Link
+		delivery_trip: DF.Link | None
+		department: DF.Link | None
+		employee: DF.Link
+		employee_name: DF.Data | None
+		exchange_rate: DF.Float
+		expenses: DF.Table[ExpenseClaimDetail]
+		gain_loss_account: DF.Link | None
+		grand_total: DF.Currency
+		is_paid: DF.Check
+		mode_of_payment: DF.Link | None
+		naming_series: DF.Literal["HR-EXP-.YYYY.-"]
+		payable_account: DF.Link | None
+		posting_date: DF.Date
+		project: DF.Link | None
+		remark: DF.SmallText | None
+		status: DF.Literal["Draft", "Paid", "Partially Paid", "Unpaid", "Submitted", "Cancelled"]
+		task: DF.Link | None
+		taxes: DF.Table[ExpenseTaxesandCharges]
+		total_advance_amount: DF.Currency
+		total_amount_reimbursed: DF.Currency
+		total_claimed_amount: DF.Currency
+		total_exchange_gain_loss: DF.Currency
+		total_sanctioned_amount: DF.Currency
+		total_taxes_and_charges: DF.Currency
+		vehicle_log: DF.Link | None
+	# end: auto-generated types
 
 	def validate(self):
 		validate_active_employee(self.employee)
@@ -77,28 +107,22 @@ class ExpenseClaim(AccountsController, PWANotificationsMixin):
 		precision = self.precision("grand_total")
 
 		if self.docstatus == 1:
-			if self.approval_status == "Approved":
-				if (
-					# set as paid
-					self.is_paid
-					or (
-						flt(self.total_sanctioned_amount) > 0
-						and (
-							# grand total is reimbursed
-							(flt(self.grand_total, precision) == flt(self.total_amount_reimbursed, precision))
-							# grand total (to be paid) is 0 since linked advances already cover the claimed amount
-							or (flt(self.grand_total, precision) == 0)
-						)
+			if (
+				self.is_paid
+				or (
+					flt(self.total_sanctioned_amount) > 0
+					and (
+						flt(self.grand_total, precision) == flt(self.total_amount_reimbursed, precision)
+						or flt(self.grand_total, precision) == 0
 					)
-				):
-					status = "Paid"
-				elif flt(self.total_sanctioned_amount) > 0:
-					if flt(self.total_amount_reimbursed, precision) > 0:
-						status = "Partially Paid"
-					else:
-						status = "Unpaid"
-			elif self.approval_status == "Rejected":
-				status = "Rejected"
+				)
+			):
+				status = "Paid"
+			elif flt(self.total_sanctioned_amount) > 0:
+				if flt(self.total_amount_reimbursed, precision) > 0:
+					status = "Partially Paid"
+				else:
+					status = "Unpaid"
 
 		if update:
 			self.db_set("status", status)
@@ -111,9 +135,7 @@ class ExpenseClaim(AccountsController, PWANotificationsMixin):
 		if not self.employee:
 			return
 
-		employee_company, employee_user = frappe.db.get_value(
-			"Employee", self.employee, ["company", "user_id"]
-		)
+		employee_company, employee_user = frappe.db.get_value("Employee", self.employee, ["company", "user_id"])
 		if not self.company:
 			self.company = employee_company
 		elif self.company != employee_company:
@@ -144,32 +166,14 @@ class ExpenseClaim(AccountsController, PWANotificationsMixin):
 					exc=MismatchError,
 				)
 
-	def validate_for_self_approval(self):
-		self_expense_approval_not_allowed = frappe.db.get_single_value(
-			"HR Settings", "prevent_self_expense_approval"
-		)
-		employee_user = frappe.db.get_value("Employee", self.employee, "user_id")
-		if (
-			self_expense_approval_not_allowed
-			and employee_user == frappe.session.user
-			and not get_workflow_name("Expense Claim")
-		):
-			frappe.throw(_("Self-approval for Expense Claims is not allowed"))
-
 	def on_update(self):
-		share_doc_with_approver(self, self.expense_approver)
 		self.publish_update()
-		self.notify_approval_status()
 
 	def after_delete(self):
 		self.publish_update()
 
 	def on_discard(self):
 		self.db_set("status", "Cancelled")
-		self.db_set("approval_status", "Cancelled")
-
-	def before_submit(self):
-		self.validate_for_self_approval()
 
 	def publish_update(self):
 		employee_user = frappe.db.get_value("Employee", self.employee, "user_id", cache=True)
@@ -177,14 +181,15 @@ class ExpenseClaim(AccountsController, PWANotificationsMixin):
 		hrms.refetch_resource("hrms:team_claims")
 
 	def on_submit(self):
-		if self.approval_status == "Draft":
-			frappe.throw(_("""Approval Status must be 'Approved' or 'Rejected'"""))
-
 		self.update_task_and_project()
 		self.make_gl_entries()
 		update_reimbursed_amount(self)
 		self.update_claimed_amount_in_employee_advance()
 		self.create_exchange_gain_loss_je()
+
+	def before_submit(self):
+		# Regional customizations may extend this hook with ``super()``.
+		pass
 
 	def on_update_after_submit(self):
 		if self.check_if_fields_updated([], {"taxes": ("account_head",), "expenses": ()}):
@@ -262,7 +267,6 @@ class ExpenseClaim(AccountsController, PWANotificationsMixin):
 						"party": self.employee,
 						"against_voucher_type": self.doctype,
 						"against_voucher": self.name,
-						"cost_center": self.cost_center,
 						"project": self.project,
 						"transaction_exchange_rate": self.exchange_rate,
 					},
@@ -281,7 +285,6 @@ class ExpenseClaim(AccountsController, PWANotificationsMixin):
 						"debit_in_account_currency": data.sanctioned_amount,
 						"debit_in_transaction_currency": data.sanctioned_amount,
 						"against": self.employee,
-						"cost_center": data.cost_center or self.cost_center,
 						"project": data.project or self.project,
 						"transaction_exchange_rate": self.exchange_rate,
 					},
@@ -308,7 +311,6 @@ class ExpenseClaim(AccountsController, PWANotificationsMixin):
 							"advance_voucher_type": data.reference_type,
 							"advance_voucher_no": data.reference_name,
 							"transaction_exchange_rate": self.exchange_rate,
-							"cost_center": self.cost_center,
 							"project": self.project,
 						},
 						account_currency=self.currency,
@@ -329,7 +331,6 @@ class ExpenseClaim(AccountsController, PWANotificationsMixin):
 						"credit_in_transaction_currency": self.grand_total,
 						"against": self.employee,
 						"transaction_exchange_rate": self.exchange_rate,
-						"cost_center": self.cost_center,
 						"project": self.project,
 					},
 					account_currency=self.currency,
@@ -350,7 +351,6 @@ class ExpenseClaim(AccountsController, PWANotificationsMixin):
 						"against_voucher": self.name,
 						"against_voucher_type": self.doctype,
 						"transaction_exchange_rate": self.exchange_rate,
-						"cost_center": self.cost_center,
 						"project": self.project,
 					},
 					account_currency=self.currency,
@@ -371,7 +371,6 @@ class ExpenseClaim(AccountsController, PWANotificationsMixin):
 						"debit_in_account_currency": tax.tax_amount,
 						"debit_in_transaction_currency": tax.tax_amount,
 						"against": self.employee,
-						"cost_center": tax.cost_center or self.cost_center,
 						"project": tax.project or self.project,
 						"against_voucher_type": self.doctype,
 						"against_voucher": self.name,
@@ -448,7 +447,6 @@ class ExpenseClaim(AccountsController, PWANotificationsMixin):
 				ref2_dt=self.doctype,
 				ref2_dn=self.name,
 				ref2_detail_no=1,
-				cost_center=self.cost_center,
 				dimensions={},
 			)
 			frappe.msgprint(
@@ -459,14 +457,6 @@ class ExpenseClaim(AccountsController, PWANotificationsMixin):
 			)
 
 	def validate_account_details(self):
-		for data in self.expenses:
-			if not data.cost_center:
-				frappe.throw(
-					_("Row {0}: {1} is required in the expenses table to book an expense claim.").format(
-						data.idx, frappe.bold(_("Cost Center"))
-					)
-				)
-
 		for data in self.advances:
 			self.validate_advance_linkage(data)
 
@@ -489,9 +479,6 @@ class ExpenseClaim(AccountsController, PWANotificationsMixin):
 
 		for d in self.get("expenses"):
 			self.round_floats_in(d)
-
-			if self.approval_status == "Rejected":
-				d.sanctioned_amount = 0.0
 
 			self.total_claimed_amount += flt(d.amount)
 			self.total_sanctioned_amount += flt(d.sanctioned_amount)
@@ -675,14 +662,6 @@ def get_outstanding_amount_for_claim(claim):
 
 
 @frappe.whitelist()
-def get_expense_claim_account_and_cost_center(expense_claim_type: str, company: str) -> dict:
-	data = get_expense_claim_account(expense_claim_type, company)
-	cost_center = erpnext.get_default_cost_center(company)
-
-	return {"account": data.get("account"), "cost_center": cost_center}
-
-
-@frappe.whitelist()
 def get_expense_claim_account(expense_claim_type: str, company: str) -> dict:
 	account = frappe.db.get_value(
 		"Expense Claim Account", {"parent": expense_claim_type, "company": company}, "default_account"
@@ -814,8 +793,6 @@ def get_expense_claim(employee_advance: str | dict) -> Document:
 		employee_advance = frappe.get_doc("Employee Advance", employee_advance)
 
 	company = employee_advance.company
-	default_cost_center = frappe.get_cached_value("Company", company, "cost_center")
-
 	expense_claim = frappe.new_doc("Expense Claim")
 	expense_claim.company = company
 	expense_claim.currency = employee_advance.currency
@@ -825,7 +802,6 @@ def get_expense_claim(employee_advance: str | dict) -> Document:
 		if employee_advance.currency == erpnext.get_company_currency(company)
 		else None
 	)
-	expense_claim.cost_center = default_cost_center
 	expense_claim.is_paid = 1 if flt(employee_advance.paid_amount) else 0
 	get_expense_claim_advances(expense_claim, employee_advance)
 	return expense_claim

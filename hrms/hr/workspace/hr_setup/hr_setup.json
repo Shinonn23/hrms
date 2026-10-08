@@ -17,7 +17,7 @@
    "hidden": 0,
    "is_query_report": 0,
    "label": "Employee",
-   "link_count": 3,
+   "link_count": 5,
    "onboard": 0,
    "type": "Card Break"
   },
@@ -47,6 +47,26 @@
    "label": "Employee Grade",
    "link_count": 0,
    "link_to": "Employee Grade",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Employee Professional License",
+   "link_count": 0,
+   "link_to": "Employee Professional License",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Employee Professional License Type",
+   "link_count": 0,
+   "link_to": "Employee Professional License Type",
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
@@ -335,7 +355,7 @@
    "hidden": 0,
    "is_query_report": 0,
    "label": "Other Reports",
-   "link_count": 4,
+   "link_count": 5,
    "link_type": "DocType",
    "onboard": 0,
    "type": "Card Break"
@@ -381,6 +401,17 @@
    "label": "Daily Work Summary Replies",
    "link_count": 0,
    "link_to": "Daily Work Summary Replies",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "Employee Professional License",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Employee Professional License",
+   "link_count": 0,
+   "link_to": "Employee Professional License",
    "link_type": "Report",
    "onboard": 0,
    "type": "Link"

@@ -95,8 +95,6 @@ class TestLeaveApplication(HRMSTestSuite):
 				from_date=add_days(first_sunday, 1),
 				to_date=add_days(first_sunday, 4),
 				company="_Test Company",
-				status="Approved",
-				leave_approver="test@example.com",
 			)
 		)
 		# Application period cannot be outside leave allocation period
@@ -114,8 +112,6 @@ class TestLeaveApplication(HRMSTestSuite):
 				from_date=add_days(first_sunday, -10),
 				to_date=add_days(first_sunday, 1),
 				company="_Test Company",
-				status="Approved",
-				leave_approver="test@example.com",
 			)
 		)
 
@@ -149,8 +145,6 @@ class TestLeaveApplication(HRMSTestSuite):
 				from_date=add_days(first_sunday, 1),
 				to_date=add_days(first_sunday, 3),
 				company="_Test Company",
-				status="Approved",
-				leave_approver="test@example.com",
 			)
 		)
 		self.assertRaises(InsufficientLeaveBalanceError, leave_application.insert)
@@ -233,7 +227,6 @@ class TestLeaveApplication(HRMSTestSuite):
 		"""check attendance is automatically created on leave approval"""
 		# make_allocation_record()
 		application = self.get_application(self.leave_application)
-		application.status = "Approved"
 		application.from_date = "2018-01-01"
 		application.to_date = "2018-01-03"
 		application.insert()
@@ -261,7 +254,6 @@ class TestLeaveApplication(HRMSTestSuite):
 
 		make_allocation_record(from_date="2023-01-01", to_date="2023-12-31")
 		application = self.get_application(self.leave_application)
-		application.status = "Approved"
 		application.from_date = "2023-01-02"
 		application.to_date = "2023-01-02"
 		application.half_day = 1
@@ -367,13 +359,11 @@ class TestLeaveApplication(HRMSTestSuite):
 		application = self.get_application(self.leave_application)
 		application.insert()
 		application.reload()
-		application.status = "Approved"
 		self.assertRaises(LeaveDayBlockedError, application.submit)
 
 		frappe.set_user("test1@example.com")
 
 		application.reload()
-		application.status = "Approved"
 		self.assertTrue(application.submit())
 
 	def test_overlap(self):
@@ -566,7 +556,6 @@ class TestLeaveApplication(HRMSTestSuite):
 		self.assertRaises(NotAnOptionalHoliday, leave_application.insert)
 		leave_application.from_date = optional_leave_date
 		leave_application.to_date = optional_leave_date
-		leave_application.status = "Approved"
 		leave_application.insert()
 		leave_application.submit()
 
@@ -595,7 +584,6 @@ class TestLeaveApplication(HRMSTestSuite):
 				to_date=add_days(date, 2),
 				company="_Test Company",
 				docstatus=1,
-				status="Approved",
 			)
 		)
 		leave_application.submit()
@@ -610,7 +598,6 @@ class TestLeaveApplication(HRMSTestSuite):
 				to_date=add_days(date, 8),
 				company="_Test Company",
 				docstatus=1,
-				status="Approved",
 			)
 		)
 		self.assertRaises(frappe.ValidationError, leave_application.insert)
@@ -636,7 +623,6 @@ class TestLeaveApplication(HRMSTestSuite):
 				to_date=add_days(date, 4),
 				company="_Test Company",
 				docstatus=1,
-				status="Approved",
 			)
 		)
 
@@ -659,7 +645,6 @@ class TestLeaveApplication(HRMSTestSuite):
 				to_date=add_days(date, 4),
 				company="_Test Company",
 				docstatus=1,
-				status="Approved",
 			)
 		)
 
@@ -693,7 +678,6 @@ class TestLeaveApplication(HRMSTestSuite):
 				to_date=add_days(date, 4),
 				company="_Test Company",
 				docstatus=1,
-				status="Approved",
 			)
 		)
 
@@ -722,7 +706,6 @@ class TestLeaveApplication(HRMSTestSuite):
 				from_date="2013-01-30",
 				to_date="2013-02-03",
 				company="_Test Company",
-				status="Approved",
 			)
 		).insert()
 
@@ -735,7 +718,6 @@ class TestLeaveApplication(HRMSTestSuite):
 				from_date="2013-02-06",
 				to_date="2013-02-10",
 				company="_Test Company",
-				status="Approved",
 			)
 		).insert()
 
@@ -750,7 +732,6 @@ class TestLeaveApplication(HRMSTestSuite):
 				from_date=from_date,
 				to_date=to_date,
 				company="_Test Company",
-				status="Approved",
 			)
 		)
 
@@ -802,8 +783,6 @@ class TestLeaveApplication(HRMSTestSuite):
 				from_date="2018-10-02",
 				to_date="2018-10-02",
 				company="_Test Company",
-				status="Approved",
-				leave_approver="test@example.com",
 			)
 		)
 		self.assertTrue(leave_application.insert())
@@ -830,7 +809,6 @@ class TestLeaveApplication(HRMSTestSuite):
 				description="_Test Reason",
 				company="_Test Company",
 				docstatus=1,
-				status="Approved",
 			)
 		)
 		leave_application.submit()
@@ -869,7 +847,6 @@ class TestLeaveApplication(HRMSTestSuite):
 				description="_Test Reason",
 				company="_Test Company",
 				docstatus=1,
-				status="Approved",
 			)
 		)
 		leave_application.submit()
@@ -902,140 +879,9 @@ class TestLeaveApplication(HRMSTestSuite):
 			0,
 		)
 
-	def test_leave_approver_perms(self):
-		employee = get_employee()
-		user = "test_approver_perm_emp@example.com"
-		make_employee(user, "_Test Company")
 
-		# set approver for employee
-		employee.reload()
-		employee.leave_approver = user
-		employee.save()
-		self.assertTrue("Leave Approver" in frappe.get_roles(user))
 
-		application = self.get_application(self.leave_application)
-		application.from_date = "2018-01-01"
-		application.to_date = "2018-01-03"
-		application.leave_approver = user
-		application.insert()
-		self.assertTrue(application.name in frappe.share.get_shared("Leave Application", user))
 
-		# check shared doc revoked
-		application.reload()
-		application.leave_approver = "test@example.com"
-		application.save()
-		self.assertTrue(application.name not in frappe.share.get_shared("Leave Application", user))
-
-		application.reload()
-		application.leave_approver = user
-		application.save()
-
-		frappe.set_user(user)
-		application.reload()
-		application.status = "Approved"
-		application.submit()
-
-		# unset leave approver
-		frappe.set_user("Administrator")
-		employee.reload()
-		employee.leave_approver = ""
-		employee.save()
-
-	def test_leave_approver_mandatory(self):
-		frappe.db.set_single_value("HR Settings", "leave_approver_mandatory_in_leave_application", 1)
-
-		employee = get_employee()
-		application = frappe.get_doc(
-			doctype="Leave Application",
-			employee=employee.name,
-			leave_type="_Test Leave Type",
-			from_date="2014-06-01",
-			to_date="2014-06-02",
-			posting_date="2014-05-30",
-			description="_Test Reason",
-			company="_Test Company",
-		)
-		self.assertRaises(frappe.ValidationError, application.insert)
-
-		application.leave_approver = "test@example.com"
-		application.insert()
-		self.assertEqual(application.leave_approver_name, frappe.utils.get_fullname("test@example.com"))
-
-	def test_self_leave_approval_allowed(self):
-		frappe.db.set_single_value("HR Settings", "prevent_self_leave_approval", 0)
-
-		employee = frappe.get_doc(
-			"Employee",
-			make_employee(
-				"test_self_leave_approval@example.com", "_Test Company", leave_approver="test@example.com"
-			),
-		)
-
-		from frappe.utils.user import add_role
-
-		add_role(employee.user_id, "Leave Approver")
-
-		make_allocation_record(employee.name)
-		application = frappe.get_doc(
-			doctype="Leave Application",
-			employee=employee.name,
-			leave_type="_Test Leave Type",
-			from_date="2014-06-01",
-			to_date="2014-06-02",
-			posting_date="2014-05-30",
-			description="_Test Reason",
-			company="_Test Company",
-			leave_approver="test@example.com",
-		)
-		application.insert()
-		application.status = "Approved"
-
-		frappe.set_user(employee.user_id)
-		application.submit()
-
-		self.assertEqual(1, application.docstatus)
-
-	def test_self_leave_approval_not_allowed(self):
-		frappe.db.set_single_value("HR Settings", "prevent_self_leave_approval", 1)
-
-		leave_approver = "test_leave_approver@example.com"
-		make_employee(leave_approver, "_Test Company")
-
-		employee = frappe.get_doc(
-			"Employee",
-			make_employee(
-				"test_self_leave_approval@example.com", "_Test Company", leave_approver=leave_approver
-			),
-		)
-
-		from frappe.utils.user import add_role
-
-		add_role(employee.user_id, "Leave Approver")
-		add_role(leave_approver, "Leave Approver")
-
-		make_allocation_record(employee.name)
-		application = frappe.get_doc(
-			doctype="Leave Application",
-			employee=employee.name,
-			leave_type="_Test Leave Type",
-			from_date="2014-06-03",
-			to_date="2014-06-04",
-			posting_date="2014-05-30",
-			description="_Test Reason",
-			company="_Test Company",
-			leave_approver=leave_approver,
-		)
-		application.insert()
-		application.status = "Approved"
-		frappe.set_user(employee.user_id)
-		self.assertRaises(frappe.ValidationError, application.save)
-
-		frappe.set_user(leave_approver)
-		application.reload()
-		application.status = "Approved"
-		application.save()
-		application.submit()
-		self.assertEqual(1, application.docstatus)
 
 	@assign_holiday_list("Salary Slip Test Holiday List", "_Test Company")
 	def test_get_leave_details_for_dashboard(self):
@@ -1062,7 +908,6 @@ class TestLeaveApplication(HRMSTestSuite):
 			"_Test Leave Type",
 			submit=False,
 		)
-		leave_application.status = "Open"
 		leave_application.save()
 
 		details = get_leave_details(employee.name, allocation.from_date)
@@ -1419,7 +1264,6 @@ class TestLeaveApplication(HRMSTestSuite):
 			from_date=previous_month_start,
 			to_date=previous_month_start,
 			posting_date=previous_month_end,
-			status="Approved",
 		)
 		doc.save()
 		doc.submit()
@@ -1468,147 +1312,7 @@ class TestLeaveApplication(HRMSTestSuite):
 		)
 		self.assertEqual(application.total_leave_days, 3)
 
-	def test_status_on_discard(self):
-		# make_allocation_record()
-		application = self.get_application(self.leave_application)
-		application.save()
-		application.discard()
-		application.reload()
-		self.assertEqual(application.status, "Cancelled")
 
-	def test_leave_access_control_flow(self):
-		leave_approver = "test_approver_access@example.com"
-		make_employee(leave_approver, "_Test Company")
-
-		employee_user = "test_leave_access@example.com"
-		employee = make_employee(employee_user, "_Test Company", leave_approver=leave_approver)
-		make_allocation_record(employee, from_date="2026-04-1", to_date="2027-03-31")
-
-		random_user = "unauth_user@example.com"
-		make_employee(random_user, "_Test Company")
-
-		frappe.set_user(employee_user)
-		leave_application = make_leave_application(
-			employee,
-			from_date="2026-04-11",
-			to_date="2026-04-11",
-			leave_type="_Test Leave Type",
-			status="Draft",
-			leave_approver=leave_approver,
-			submit=False,
-		)
-
-		# Unauthorized user should not access leave data
-		frappe.set_user(random_user)
-		doc = frappe.get_doc("Leave Application", leave_application.name)
-		self.assertRaises(frappe.PermissionError, doc.check_permission, "read")
-		self.assertRaises(
-			frappe.PermissionError,
-			get_leave_details,
-			employee,
-			leave_application.from_date,
-		)
-
-		frappe.set_user(leave_approver)
-		leave_application.status = "Approved"
-		leave_application.submit()
-		self.assertEqual(leave_application.docstatus, 1)
-
-	def test_leave_approver_with_restricted_employee_access(self):
-		permitted_employee = make_employee(
-			"test_employee_with_permission@example.com",
-			"_Test Company",
-		)
-		leave_approver = "approver_restricted@example.com"
-		make_employee(leave_approver, "_Test Company")
-		add_user_permission("Employee", permitted_employee, leave_approver)
-
-		target_employee_user = "employee_without_user_perm_for_leave_approver@example.com"
-		target_employee = make_employee(target_employee_user, "_Test Company", leave_approver=leave_approver)
-		make_allocation_record(target_employee, from_date="2026-04-01", to_date="2027-03-31")
-
-		frappe.set_user(target_employee_user)
-		leave_application = make_leave_application(
-			target_employee,
-			from_date="2026-04-20",
-			to_date="2026-04-20",
-			leave_type="_Test Leave Type",
-			status="Draft",
-			leave_approver=leave_approver,
-			submit=False,
-		)
-
-		# Approver not having access to target employee master but can approve leave
-		frappe.set_user(leave_approver)
-		doc_employee = frappe.get_doc("Employee", target_employee)
-		self.assertRaises(
-			frappe.PermissionError,
-			doc_employee.check_permission,
-			"read",
-		)
-
-		leave_application.status = "Approved"
-		leave_application.submit()
-		self.assertEqual(leave_application.docstatus, 1)
-
-	def test_leave_access_for_workflow_reviewer_without_employee_permission(self):
-		reviewer_user = "reviewer_without_employee_access@example.com"
-		reviewer_employee = make_employee(reviewer_user, "_Test Company")
-		add_user_permission("Employee", reviewer_employee, reviewer_user, hide_descendants=1)
-
-		target_employee_user = "employee_reviewed_by_workflow@example.com"
-		target_employee = make_employee(target_employee_user, "_Test Company")
-		make_allocation_record(target_employee, from_date="2026-04-01", to_date="2027-03-31")
-
-		frappe.set_user(target_employee_user)
-		leave_application = make_leave_application(
-			target_employee,
-			from_date="2026-04-20",
-			to_date="2026-04-20",
-			leave_type="_Test Leave Type",
-			status="Draft",
-			submit=False,
-		)
-		# simulates access granted via workflow review, without a leave_approver
-		frappe.share.add_docshare("Leave Application", leave_application.name, reviewer_user, read=1)
-
-		frappe.set_user(reviewer_user)
-		self.assertRaises(
-			frappe.PermissionError,
-			frappe.get_doc("Employee", target_employee).check_permission,
-			"read",
-		)
-		self.assertRaises(
-			frappe.PermissionError,
-			get_leave_details,
-			target_employee,
-			leave_application.from_date,
-		)
-
-		leave_details = get_leave_details(
-			target_employee,
-			leave_application.from_date,
-			leave_application=leave_application.name,
-		)
-		self.assertTrue(leave_details["leave_allocation"])
-
-		# a leave application shared with the reviewer must not unlock a different employee's data
-		make_allocation_record(reviewer_employee, from_date="2026-04-01", to_date="2027-03-31")
-		own_leave_application = make_leave_application(
-			reviewer_employee,
-			from_date="2026-04-21",
-			to_date="2026-04-21",
-			leave_type="_Test Leave Type",
-			status="Draft",
-			submit=False,
-		)
-		self.assertRaises(
-			frappe.PermissionError,
-			get_leave_details,
-			target_employee,
-			leave_application.from_date,
-			leave_application=own_leave_application.name,
-		)
 
 
 def create_carry_forwarded_allocation(employee, leave_type, date=None):

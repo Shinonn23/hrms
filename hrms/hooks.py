@@ -148,6 +148,14 @@ before_app_uninstall = "hrms.setup.before_app_uninstall"
 
 has_upload_permission = {"Employee": "erpnext.setup.doctype.employee.employee.has_upload_permission"}
 
+permission_query_conditions = {
+	"Employee Professional License": "hrms.hr.doctype.employee_professional_license.employee_professional_license.get_permission_query_conditions",
+}
+
+has_permission = {
+	"Employee Professional License": "hrms.hr.doctype.employee_professional_license.employee_professional_license.has_permission",
+}
+
 # DocType Class
 # ---------------
 # Override standard doctype classes
@@ -165,10 +173,7 @@ override_doctype_class = {
 
 doc_events = {
 	"User": {
-		"validate": [
-			"erpnext.setup.doctype.employee.employee.validate_employee_role",
-			"hrms.overrides.employee_master.update_approver_user_roles",
-		],
+		"validate": "erpnext.setup.doctype.employee.employee.validate_employee_role",
 	},
 	"Company": {
 		"validate": "hrms.overrides.company.validate_default_accounts",
@@ -211,7 +216,6 @@ doc_events = {
 	"Employee": {
 		"validate": "hrms.overrides.employee_master.validate_onboarding_process",
 		"on_update": [
-			"hrms.overrides.employee_master.update_approver_role",
 			"hrms.overrides.employee_master.publish_update",
 		],
 		"after_insert": [
@@ -261,6 +265,7 @@ scheduler_events = {
 	"daily": [
 		"hrms.controllers.employee_reminders.send_birthday_reminders",
 		"hrms.controllers.employee_reminders.send_work_anniversary_reminders",
+		"hrms.hr.doctype.employee_professional_license.employee_professional_license.send_license_expiry_reminders",
 		"hrms.hr.doctype.daily_work_summary_group.daily_work_summary_group.send_summary",
 		"hrms.hr.doctype.interview.interview.send_daily_feedback_reminder",
 		"hrms.hr.doctype.shift_assignment.shift_assignment.mark_expired_shift_assignments_as_inactive",

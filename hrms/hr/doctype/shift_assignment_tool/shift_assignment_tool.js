@@ -22,11 +22,6 @@ frappe.ui.form.on("Shift Assignment Tool", {
 			"completed_bulk_shift_schedule_assignment",
 			"Shift Schedule Assignment",
 		);
-		hrms.handle_realtime_bulk_action_notification(
-			frm,
-			"completed_bulk_shift_request_processing",
-			"Shift Request",
-		);
 	},
 
 	action(frm) {
@@ -56,25 +51,7 @@ frappe.ui.form.on("Shift Assignment Tool", {
 		frm.trigger("get_employees");
 	},
 
-	shift_type_filter(frm) {
-		frm.trigger("get_employees");
-	},
-
 	shift_schedule(frm) {
-		frm.trigger("get_employees");
-	},
-
-	approver(frm) {
-		frm.trigger("get_employees");
-	},
-
-	from_date(frm) {
-		if (frm.doc.from_date > frm.doc.to_date) frm.set_value("to_date", null);
-		frm.trigger("get_employees");
-	},
-
-	to_date(frm) {
-		if (frm.doc.to_date < frm.doc.from_date) frm.set_value("from_date", null);
 		frm.trigger("get_employees");
 	},
 
@@ -114,25 +91,6 @@ frappe.ui.form.on("Shift Assignment Tool", {
 			frm.page.set_primary_action(__("Assign Shift Schedule"), () => {
 				frm.trigger("bulk_assign");
 			});
-		else {
-			frm.page.add_inner_button(
-				__("Approve"),
-				() => {
-					frm.events.process_shift_requests(frm, "Approved");
-				},
-				__("Process Requests"),
-			);
-			frm.page.add_inner_button(
-				__("Reject"),
-				() => {
-					frm.events.process_shift_requests(frm, "Rejected");
-				},
-				__("Process Requests"),
-			);
-			frm.page.set_inner_btn_group_as_primary(__("Process Requests"));
-			frm.page.clear_menu();
-			select_rows_section_head.textContent = __("Select Shift Requests");
-		}
 	},
 
 	get_employees(frm) {
@@ -169,9 +127,6 @@ frappe.ui.form.on("Shift Assignment Tool", {
 					? "There are no employees without active overlapping Shift Schedule Assignments based on the given filters."
 					: "Please select Shift Schedule and assignment date(s).",
 			);
-		} else {
-			columns = frm.events.get_process_shift_requests_datatable_columns();
-			no_data_message = "There are no open Shift Requests based on the given filters.";
 		}
 		hrms.render_employees_datatable(frm, columns, employees, no_data_message);
 	},
@@ -212,42 +167,6 @@ frappe.ui.form.on("Shift Assignment Tool", {
 		}));
 	},
 
-	get_process_shift_requests_datatable_columns() {
-		return [
-			{
-				name: "shift_request",
-				id: "shift_request",
-				content: __("Shift Request"),
-			},
-			{
-				name: "employee",
-				id: "employee_name",
-				content: __("Employee"),
-			},
-			{
-				name: "shift_type",
-				id: "shift_type",
-				content: __("Shift Type"),
-			},
-			{
-				name: "from_date",
-				id: "from_date",
-				content: __("From Date"),
-			},
-			{
-				name: "to_date",
-				id: "to_date",
-				content: __("To Date"),
-			},
-		].map((x) => ({
-			...x,
-			editable: false,
-			focusable: false,
-			dropdown: false,
-			align: "left",
-		}));
-	},
-
 	bulk_assign(frm, employees) {
 		const rows = frm.employees_datatable.datamanager.data;
 		const selected_employees = [];
@@ -273,36 +192,4 @@ frappe.ui.form.on("Shift Assignment Tool", {
 		);
 	},
 
-	process_shift_requests(frm, status) {
-		const rows = frm.employees_datatable.datamanager.data;
-		const selected_requests = [];
-		const checked_row_indexes = frm.employees_datatable.rowmanager.getCheckedRows();
-		checked_row_indexes.forEach((idx) => {
-			selected_requests.push({
-				shift_request: rows[idx].name,
-				employee: rows[idx].employee,
-			});
-		});
-
-		hrms.validate_mandatory_fields(frm, selected_requests, "Shift Requests");
-		frappe.confirm(
-			__("Process {0} Shift Request(s) as <b>{1}</b>?", [selected_requests.length, status]),
-			() => {
-				frm.events.bulk_process_shift_requests(frm, selected_requests, status);
-			},
-		);
-	},
-
-	bulk_process_shift_requests(frm, shift_requests, status) {
-		frm.call({
-			method: "bulk_process_shift_requests",
-			doc: frm.doc,
-			args: {
-				shift_requests: shift_requests,
-				status: status,
-			},
-			freeze: true,
-			freeze_message: __("Processing Requests"),
-		});
-	},
 });

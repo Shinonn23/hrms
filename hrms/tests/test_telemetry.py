@@ -222,7 +222,7 @@ class TestTelemetry(HRMSTestSuite):
 	def test_leave_application_sends_leave_type_flags_not_its_name(self):
 		leave_type = create_leave_type(is_lwp=1)
 		doc = frappe._dict(
-			leave_type=leave_type.name, total_leave_days=2.0, half_day=0, leave_approver="x@example.com"
+			leave_type=leave_type.name, total_leave_days=2.0, half_day=0
 		)
 
 		on_leave_application_submit(doc)
@@ -254,7 +254,6 @@ class TestTelemetry(HRMSTestSuite):
 				on_shift_request_submit,
 				frappe._dict(
 					shift_type="Night Shift",
-					approver="a@example.com",
 					from_date=FROZEN_TODAY,
 					to_date=FROZEN_TODAY,
 				),

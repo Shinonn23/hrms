@@ -2482,12 +2482,6 @@ msgctxt "Account"
 msgid "Chart of Accounts"
 msgstr ""
 
-#. Label of a Link in the Salary Payout Workspace
-#: payroll/workspace/salary_payout/salary_payout.json
-msgctxt "Cost Center"
-msgid "Chart of Cost Centers"
-msgstr ""
-
 #: payroll/doctype/payroll_entry/payroll_entry.py:1355
 msgid "Check Error Log {0} for more details."
 msgstr ""
@@ -3245,54 +3239,6 @@ msgstr "邀請/公告的副本"
 
 #: hr/report/project_profitability/project_profitability.py:178
 msgid "Cost"
-msgstr ""
-
-#. Label of a Link field in DocType 'Employee Cost Center'
-#: payroll/doctype/employee_cost_center/employee_cost_center.json
-msgctxt "Employee Cost Center"
-msgid "Cost Center"
-msgstr ""
-
-#. Label of a Link field in DocType 'Expense Claim'
-#: hr/doctype/expense_claim/expense_claim.json
-msgctxt "Expense Claim"
-msgid "Cost Center"
-msgstr ""
-
-#. Label of a Link field in DocType 'Expense Claim Detail'
-#: hr/doctype/expense_claim_detail/expense_claim_detail.json
-msgctxt "Expense Claim Detail"
-msgid "Cost Center"
-msgstr ""
-
-#. Label of a Link field in DocType 'Expense Taxes and Charges'
-#: hr/doctype/expense_taxes_and_charges/expense_taxes_and_charges.json
-msgctxt "Expense Taxes and Charges"
-msgid "Cost Center"
-msgstr ""
-
-#. Label of a Link field in DocType 'Gratuity'
-#: payroll/doctype/gratuity/gratuity.json
-msgctxt "Gratuity"
-msgid "Cost Center"
-msgstr ""
-
-#. Label of a Link field in DocType 'Payroll Entry'
-#: payroll/doctype/payroll_entry/payroll_entry.json
-msgctxt "Payroll Entry"
-msgid "Cost Center"
-msgstr ""
-
-#. Label of a Link field in DocType 'Travel Request'
-#: hr/doctype/travel_request/travel_request.json
-msgctxt "Travel Request"
-msgid "Cost Center"
-msgstr ""
-
-#. Label of a Table field in DocType 'Salary Structure Assignment'
-#: payroll/doctype/salary_structure_assignment/salary_structure_assignment.json
-msgctxt "Salary Structure Assignment"
-msgid "Cost Centers"
 msgstr ""
 
 #. Label of a Table field in DocType 'Travel Request'
@@ -5561,11 +5507,6 @@ msgstr ""
 #: hr/workspace/shift_&_attendance/shift_&_attendance.json
 msgctxt "Employee Checkin"
 msgid "Employee Checkin"
-msgstr ""
-
-#. Name of a DocType
-#: payroll/doctype/employee_cost_center/employee_cost_center.json
-msgid "Employee Cost Center"
 msgstr ""
 
 #. Label of a Section Break field in DocType 'Employee Onboarding'
@@ -11742,12 +11683,6 @@ msgctxt "Leave Encashment"
 msgid "Payroll"
 msgstr "工資表"
 
-#. Label of a Section Break field in DocType 'Salary Structure Assignment'
-#: payroll/doctype/salary_structure_assignment/salary_structure_assignment.json
-msgctxt "Salary Structure Assignment"
-msgid "Payroll Cost Centers"
-msgstr ""
-
 #. Label of a Date field in DocType 'Additional Salary'
 #: payroll/doctype/additional_salary/additional_salary.json
 msgctxt "Additional Salary"
@@ -11990,12 +11925,6 @@ msgstr ""
 msgctxt "Taxable Salary Slab"
 msgid "Percent Deduction"
 msgstr "扣除百分比"
-
-#. Label of a Int field in DocType 'Employee Cost Center'
-#: payroll/doctype/employee_cost_center/employee_cost_center.json
-msgctxt "Employee Cost Center"
-msgid "Percentage (%)"
-msgstr ""
 
 #. Name of a Workspace
 #: hr/workspace/performance/performance.json
@@ -15768,10 +15697,6 @@ msgstr ""
 #: hr/doctype/leave_allocation/leave_allocation.py:248
 msgid "Total leaves allocated is mandatory for Leave Type {0}"
 msgstr "為假期類型{0}分配的總分配數是強制性的"
-
-#: payroll/doctype/salary_structure_assignment/salary_structure_assignment.py:141
-msgid "Total percentage against cost centers should be 100"
-msgstr ""
 
 #. Description of a Currency field in DocType 'Salary Detail'
 #: payroll/doctype/salary_detail/salary_detail.json

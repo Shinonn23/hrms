@@ -65,8 +65,6 @@ class TestArrear(HRMSTestSuite):
 				"from_date": new_payroll_period.start_date,
 				"to_date": new_payroll_period.start_date,
 				"company": "_Test Company",
-				"status": "Approved",
-				"leave_approver": "test@example.com",
 			}
 		).insert()
 		leave_application.submit()

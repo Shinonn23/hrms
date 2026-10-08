@@ -43,11 +43,6 @@ export const LEAVE_FIELDS = [
 		fieldtype: "Float",
 	},
 	{
-		fieldname: "status",
-		label: "Status",
-		fieldtype: "Select",
-	},
-	{
 		fieldname: "description",
 		label: "Reason",
 		fieldtype: "Small Text",
@@ -104,11 +99,6 @@ export const EXPENSE_CLAIM_FIELDS = [
 	{
 		fieldname: "status",
 		label: "Status",
-		fieldtype: "Select",
-	},
-	{
-		fieldname: "approval_status",
-		label: "Approval Status",
 		fieldtype: "Select",
 	},
 ]
@@ -209,11 +199,6 @@ export const SHIFT_REQUEST_FIELDS = [
 		fieldname: "employee",
 		label: "Employee",
 		fieldtype: "Link",
-	},
-	{
-		fieldname: "status",
-		label: "Status",
-		fieldtype: "Select",
 	},
 ]
 

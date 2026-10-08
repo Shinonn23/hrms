@@ -81,7 +81,7 @@ const props = defineProps({
 const tabs = [
 	{ name: "Expenses", lastField: "taxes" },
 	{ name: "Advances", lastField: "advances" },
-	{ name: "Totals", lastField: "cost_center" },
+	{ name: "Totals", lastField: "project" },
 ]
 
 // object to store form data
@@ -106,7 +106,6 @@ const formFields = createResource({
 		})
 	},
 	onSuccess(_data) {
-		expenseApproverDetails.reload()
 		if (!expenseClaim.value.currency) {
 			employeeCurrency.reload()
 		}
@@ -172,14 +171,6 @@ function onFormReloaded() {
 	advances.reload()
 }
 
-const expenseApproverDetails = createResource({
-	url: "hrms.api.get_expense_approval_details",
-	params: { employee: currEmployee.value },
-	onSuccess(data) {
-		setExpenseApprover(data)
-	},
-})
-
 const employeeCurrency = createResource({
 	url: "frappe.client.get_value",
 	makeParams() {
@@ -201,10 +192,15 @@ const employeeCurrency = createResource({
 });
 
 const companyDetails = createResource({
-	url: "hrms.api.get_company_cost_center_and_expense_account",
-	params: { company: expenseClaim.value.company },
+	url: "frappe.client.get_value",
+	makeParams() {
+		return {
+			doctype: "Company",
+			fieldname: ["default_expense_claim_payable_account", "default_payroll_payable_account"],
+			filters: { name: expenseClaim.value.company },
+		}
+	},
 	onSuccess(data) {
-		expenseClaim.value.cost_center = data?.cost_center
 		expenseClaim.value.payable_account =
 			data?.default_expense_claim_payable_account ||
 			data?.default_payroll_payable_account
@@ -227,7 +223,6 @@ watch(
 			setFormReadOnly()
 		}
 		currEmployee.value = employee_id
-		expenseApproverDetails.fetch({ employee: currEmployee.value })
 		employeeCurrency.fetch()
 	},
 )
@@ -261,15 +256,6 @@ watch(
 	{ deep: true }
 )
 
-watch(
-	() => expenseClaim.value.cost_center,
-	() => {
-		expenseClaim?.value?.expenses?.forEach((expense) => {
-			expense.cost_center = expenseClaim.value.cost_center
-		})
-	}
-)
-
 // helper functions
 function getFilteredFields(fields) {
 	// reduce noise from the form view by excluding unnecessary fields
@@ -291,7 +277,6 @@ function getFilteredFields(fields) {
 		"is_paid",
 		"mode_of_payment",
 		"clearance_date",
-		"approval_status",
 	]
 
 	if (!props.id) excludeFields.push(...extraFields)
@@ -313,11 +298,6 @@ function applyFilters(field) {
 			is_group: 0,
 			account_currency: expenseClaim.value.currency,
 		}
-	} else if (field.fieldname === "cost_center") {
-		field.linkFilters = {
-			company: expenseClaim.value.company,
-			is_group: 0,
-		}
 	} else if (field.fieldname === "project") {
 		field.linkFilters = {
 			company: expenseClaim.value.company,
@@ -325,24 +305,6 @@ function applyFilters(field) {
 	}
 
 	return field
-}
-
-function setExpenseApprover(data) {
-	const expense_approver = formFields.data?.find(
-		(field) => field.fieldname === "expense_approver"
-	)
-	expense_approver.reqd = data?.is_mandatory
-	expense_approver.documentList = data?.department_approvers.map(
-		(approver) => ({
-			label: approver.full_name
-				? `${approver.name} : ${approver.full_name}`
-				: approver.name,
-			value: approver.name,
-		})
-	)
-
-	expenseClaim.value.expense_approver = data?.expense_approver
-	expenseClaim.value.expense_approver_name = data?.expense_approver_name
 }
 
 function addExpenseItem(item) {
@@ -465,7 +427,6 @@ function calculateTotalAdvance() {
 }
 
 function setFormReadOnly() {
-	if (props.id && expenseClaim.value.expense_approver !== currEmployee.value) return
 	formFields.data.map((field) => (field.read_only = true))
 	isReadOnly.value = true
 }
@@ -477,9 +438,6 @@ function validateForm() {
 	expenseClaim.value.advances = expenseClaim?.value?.advances?.filter(
 		(advance) => advance.selected
 	)
-	expenseClaim?.value?.expenses?.forEach((expense) => {
-		expense.cost_center = expenseClaim.value.cost_center
-	})
 }
 
 function setExchangeRate() {

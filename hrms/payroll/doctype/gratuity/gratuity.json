@@ -25,7 +25,6 @@
   "column_break_13",
   "payroll_date",
   "salary_component",
-  "cost_center",
   "mode_of_payment",
   "expense_account",
   "payable_account"
@@ -158,12 +157,6 @@
    "label": "Payable Account",
    "mandatory_depends_on": "eval: !doc.pay_via_salary_slip",
    "options": "Account"
-  },
-  {
-   "fieldname": "cost_center",
-   "fieldtype": "Link",
-   "label": "Cost Center",
-   "options": "Cost Center"
   },
   {
    "default": "1",

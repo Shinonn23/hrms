@@ -1015,8 +1015,17 @@ class TestLeaveAllocation(HRMSTestSuite):
 
 	def test_permission_check_for_retrying_failed_allocation(self):
 		frappe.flags.current_date = get_year_start(getdate())
+		from erpnext.setup.doctype.employee.test_employee import make_employee
+
+		employee = frappe.get_doc(
+			"Employee",
+			make_employee(
+				f"test-retry-{frappe.generate_hash(length=8)}@example.com",
+				company=self.employee.company,
+			),
+		)
 		assignment = make_policy_assignment(
-			self.employee,
+			employee,
 			allocate_on_day="First Day",
 			earned_leave_frequency="Monthly",
 			annual_allocation=24,
@@ -1026,23 +1035,25 @@ class TestLeaveAllocation(HRMSTestSuite):
 			rounding=0.25,
 		)[0]
 		leave_allocation = frappe.get_doc(
-			"Leave Allocation", {"employee": self.employee.name, "leave_policy_assignment": assignment}
+			"Leave Allocation", {"employee": employee.name, "leave_policy_assignment": assignment}
 		)
 		failed_allocations = frappe.get_all(
 			"Earned Leave Schedule", {"parent": leave_allocation.name, "attempted": 1, "failed": 1}, ["*"]
 		)
-		frappe.set_user(self.employee.user_id)
+		frappe.set_user(employee.user_id)
 		self.assertRaises(
 			frappe.PermissionError, leave_allocation.retry_failed_allocations, failed_allocations
 		)
-		add_role(self.employee.user_id, "HR Manager")
+		frappe.set_user("Administrator")
+		add_role(employee.user_id, "HR Manager")
+		frappe.set_user(employee.user_id)
 		leave_allocation.retry_failed_allocations(failed_allocations)
 		failed_allocations = frappe.get_all(
 			"Earned Leave Schedule", {"parent": leave_allocation.name, "attempted": 1, "failed": 1}, ["*"]
 		)
 		self.assertFalse(failed_allocations)
 		frappe.set_user("Administrator")
-		frappe.get_doc("User", self.employee.user_id).remove_roles("HR Manager")
+		frappe.get_doc("User", employee.user_id).remove_roles("HR Manager")
 
 	def test_allocating_earned_leave_when_schedule_doesnt_exist(self):
 		frappe.flags.current_date = get_year_start(getdate())

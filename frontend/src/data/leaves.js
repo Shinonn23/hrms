@@ -40,7 +40,6 @@ export const teamLeaves = createResource({
 	url: "hrms.api.get_leave_applications",
 	params: {
 		employee: employeeResource.data.name,
-		approver_id: employeeResource.data.user_id,
 		for_approval: 1,
 		limit: 10,
 	},

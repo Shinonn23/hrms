@@ -149,7 +149,9 @@ def on_leave_application_submit(doc, method=None):
 			**{flag: bool(flags.get(flag)) for flag in LEAVE_TYPE_FLAGS},
 			"total_leave_days": doc.total_leave_days,
 			"half_day": bool(doc.half_day),
-			"self_approved": doc.leave_approver == frappe.session.user,
+			"self_approved": (
+				frappe.db.get_value("Employee", doc.employee, "user_id") == frappe.session.user
+			),
 		},
 	)
 	capture_first("first_leave_applied")
@@ -184,7 +186,6 @@ def on_shift_request_submit(doc, method=None):
 	capture(
 		"shift_request_submitted",
 		{
-			"has_approver": bool(doc.approver),
 			"days": _duration_days(doc.from_date, doc.to_date),
 		},
 	)

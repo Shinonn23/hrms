@@ -18,16 +18,6 @@ frappe.ui.form.on("Expense Claim", {
 			};
 		});
 
-		frm.set_query("expense_approver", function () {
-			return {
-				query: "hrms.hr.doctype.department_approver.department_approver.get_approvers",
-				filters: {
-					employee: frm.doc.employee,
-					doctype: frm.doc.doctype,
-				},
-			};
-		});
-
 		frm.set_query("account_head", "taxes", function () {
 			return {
 				filters: [
@@ -83,20 +73,6 @@ frappe.ui.form.on("Expense Claim", {
 	onload: function (frm) {
 		erpnext.accounts.dimensions.setup_dimension_filters(frm, frm.doctype);
 
-		if (frm.doc.docstatus == 0) {
-			return frappe.call({
-				method: "hrms.hr.doctype.leave_application.leave_application.get_mandatory_approval",
-				args: {
-					doctype: frm.doc.doctype,
-				},
-				callback: function (r) {
-					if (!r.exc && r.message) {
-						frm.toggle_reqd("expense_approver", true);
-					}
-				},
-			});
-		}
-
 		frm.trigger("update_fields_label");
 		frm.trigger("update_child_fields_label");
 	},
@@ -119,7 +95,6 @@ frappe.ui.form.on("Expense Claim", {
 		if (
 			frm.doc.docstatus === 1 &&
 			frm.doc.status !== "Paid" &&
-			frm.doc.approval_status !== "Rejected" &&
 			frappe.model.can_create("Payment Entry")
 		) {
 			frm.add_custom_button(
@@ -130,7 +105,6 @@ frappe.ui.form.on("Expense Claim", {
 				__("Create"),
 			);
 		}
-		frm.trigger("set_form_buttons");
 		frm.trigger("update_fields_label");
 		frm.trigger("update_child_fields_label");
 		if (frm.is_new()) {
@@ -153,7 +127,6 @@ frappe.ui.form.on("Expense Claim", {
 
 	validate: function (frm) {
 		frm.trigger("calculate_total");
-		frm.events.set_child_cost_center(frm);
 	},
 
 	currency: function (frm) {
@@ -300,7 +273,7 @@ frappe.ui.form.on("Expense Claim", {
 	},
 
 	add_ledger_buttons: function (frm) {
-		if (frm.doc.docstatus > 0 && frm.doc.approval_status !== "Rejected") {
+		if (frm.doc.docstatus > 0) {
 			frm.add_custom_button(
 				__("Accounting Ledger"),
 				function () {
@@ -432,7 +405,7 @@ frappe.ui.form.on("Expense Claim", {
 				continue;
 			}
 			frappe.call({
-				method: "hrms.hr.doctype.expense_claim.expense_claim.get_expense_claim_account_and_cost_center",
+				method: "hrms.hr.doctype.expense_claim.expense_claim.get_expense_claim_account",
 				args: {
 					expense_claim_type: expense.expense_type,
 					company: frm.doc.company,
@@ -440,7 +413,6 @@ frappe.ui.form.on("Expense Claim", {
 				callback: function (r) {
 					if (r.message) {
 						expense.default_account = r.message.account;
-						expense.cost_center = r.message.cost_center;
 					}
 				},
 			});
@@ -483,10 +455,6 @@ frappe.ui.form.on("Expense Claim", {
 		frm.events.get_advances(frm);
 	},
 
-	cost_center: function (frm) {
-		frm.events.set_child_cost_center(frm);
-	},
-
 	mode_of_payment: async function (frm) {
 		if (frm.doc.mode_of_payment) {
 			var mode_of_payment_type = (
@@ -503,14 +471,6 @@ frappe.ui.form.on("Expense Claim", {
 				};
 			});
 		}
-	},
-
-	set_child_cost_center: function (frm) {
-		(frm.doc.expenses || []).forEach(function (d) {
-			if (!d.cost_center) {
-				d.cost_center = frm.doc.cost_center;
-			}
-		});
 	},
 
 	get_taxes: function (frm) {
@@ -559,28 +519,6 @@ frappe.ui.form.on("Expense Claim", {
 			});
 		}
 	},
-	set_form_buttons: async function (frm) {
-		let self_approval_not_allowed = frm.doc.__onload
-			? frm.doc.__onload.self_expense_approval_not_allowed
-			: 0;
-		let current_employee = await hrms.get_current_employee();
-		if (
-			frm.doc.docstatus === 0 &&
-			!frm.is_dirty() &&
-			!frappe.model.has_workflow(frm.doctype)
-		) {
-			if (self_approval_not_allowed && current_employee == frm.doc.employee) {
-				frm.set_df_property("status", "read_only", 1);
-				frm.trigger("show_save_button");
-			}
-		}
-	},
-	show_save_button: function (frm) {
-		frm.page.set_primary_action("Save", () => {
-			frm.save();
-		});
-		$(".form-message").prop("hidden", true);
-	},
 });
 
 frappe.ui.form.on("Expense Claim Detail", {
@@ -607,7 +545,7 @@ frappe.ui.form.on("Expense Claim Detail", {
 		}
 
 		return frappe.call({
-			method: "hrms.hr.doctype.expense_claim.expense_claim.get_expense_claim_account_and_cost_center",
+			method: "hrms.hr.doctype.expense_claim.expense_claim.get_expense_claim_account",
 			args: {
 				expense_claim_type: d.expense_type,
 				company: frm.doc.company,
@@ -615,7 +553,6 @@ frappe.ui.form.on("Expense Claim Detail", {
 			callback: function (r) {
 				if (r.message) {
 					d.default_account = r.message.account;
-					d.cost_center = r.message.cost_center;
 				}
 			},
 		});
@@ -632,10 +569,6 @@ frappe.ui.form.on("Expense Claim Detail", {
 		frm.trigger("get_taxes");
 		frm.trigger("calculate_grand_total");
 		set_in_company_currency(frm, locals[cdt][cdn], ["sanctioned_amount"]);
-	},
-
-	cost_center: function (frm, cdt, cdn) {
-		erpnext.utils.copy_value_in_all_rows(frm.doc, cdt, cdn, "expenses", "cost_center");
 	},
 });
 

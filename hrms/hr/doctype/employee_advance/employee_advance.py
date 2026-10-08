@@ -220,7 +220,6 @@ class EmployeeAdvance(Document):
 			.where(
 				(eca.employee_advance == self.name)
 				& (eca.allocated_amount > 0)
-				& (ec.approval_status == "Approved")
 				& (ec.docstatus == 1)
 			)
 		).run()[0][0] or 0
@@ -322,7 +321,6 @@ def make_return_entry(
 			"party_type": "Employee",
 			"party": employee,
 			"is_advance": "Yes",
-			"cost_center": erpnext.get_default_cost_center(company),
 		},
 	)
 
@@ -334,7 +332,6 @@ def make_return_entry(
 			"debit_in_account_currency": bank_amount,
 			"account_currency": bank_cash_account.account_currency,
 			"account_type": bank_cash_account.account_type,
-			"cost_center": erpnext.get_default_cost_center(company),
 		},
 	)
 

@@ -23,19 +23,6 @@ company_name = "_Test Company 3"
 
 class TestExpenseClaim(HRMSTestSuite):
 	def setUp(self):
-		if not frappe.db.get_value("Cost Center", {"company": company_name}):
-			cost_center = frappe.new_doc("Cost Center")
-			cost_center.update(
-				{
-					"doctype": "Cost Center",
-					"cost_center_name": "_Test Cost Center 3",
-					"parent_cost_center": "_Test Company 3 - _TC3",
-					"is_group": 0,
-					"company": company_name,
-				}
-			).insert()
-
-			frappe.db.set_value("Company", company_name, "default_cost_center", cost_center)
 		frappe.db.set_value("Account", "Employee Advances - _TC", "account_type", "Receivable")
 		frappe.db.set_value("Account", "Payroll Payable - _TC", "account_type", "Payable")
 		frappe.set_user("Administrator")
@@ -92,7 +79,6 @@ class TestExpenseClaim(HRMSTestSuite):
 		line_project = create_project("_Test Project Line 2", company="_Test Company")
 
 		payable_account = get_payable_account(company_name)
-		cost_center = frappe.db.get_value("Company", company_name, "cost_center")
 
 		expense_claim = make_expense_claim(
 			payable_account,
@@ -111,7 +97,6 @@ class TestExpenseClaim(HRMSTestSuite):
 				"currency": expense_claim.currency,
 				"amount": 500,
 				"sanctioned_amount": 500,
-				"cost_center": cost_center,
 				"project": line_project,
 			},
 		)
@@ -181,7 +166,6 @@ class TestExpenseClaim(HRMSTestSuite):
 			entry.reference_type = ""
 			entry.reference_name = ""
 
-			cost_center = entry.cost_center
 			if entry.party:
 				employee1 = entry.party
 
@@ -197,7 +181,6 @@ class TestExpenseClaim(HRMSTestSuite):
 				"reference_type": "Expense Claim",
 				"party_type": "Employee",
 				"party": employee,
-				"cost_center": cost_center,
 			},
 		)
 
@@ -451,16 +434,13 @@ class TestExpenseClaim(HRMSTestSuite):
 		advance = make_employee_advance(employee, {"advance_amount": 500})
 		make_payment_entry(advance)
 
-		currency, cost_center = frappe.db.get_value(
-			"Company", "_Test Company", ["default_currency", "cost_center"]
-		)
+		currency = frappe.db.get_value("Company", "_Test Company", "default_currency")
 		claim = get_expense_claim(advance.name)  # function call to create claim from employee advance form
 		claim.update(
 			{
 				"payable_account": get_payable_account("_Test Company"),
 				"currency": currency,
 				"exchange_rate": 1,
-				"approval_status": "Approved",
 			}
 		)
 		claim.append(
@@ -470,7 +450,6 @@ class TestExpenseClaim(HRMSTestSuite):
 				"default_account": "Travel Expenses - _TC",
 				"amount": 1000,
 				"sanctioned_amount": 1000,
-				"cost_center": cost_center,
 			},
 		)
 
@@ -590,7 +569,7 @@ class TestExpenseClaim(HRMSTestSuite):
 		expense_claim = make_expense_claim(
 			payable_account,
 			300,
-			200,
+			300,
 			company_name,
 			"Travel Expenses - _TC3",
 			do_not_submit=True,
@@ -599,7 +578,6 @@ class TestExpenseClaim(HRMSTestSuite):
 		expense_claim.submit()
 
 		from hrms.overrides.employee_payment_entry import get_payment_entry_for_employee
-
 		pe = get_payment_entry_for_employee(expense_claim.doctype, expense_claim.name)
 		pe.save()
 		pe.submit()
@@ -619,49 +597,7 @@ class TestExpenseClaim(HRMSTestSuite):
 			[],
 		)
 
-	def test_rejected_expense_claim(self):
-		payable_account = get_payable_account(company_name)
-		expense_claim = make_expense_claim(
-			payable_account, 300, 200, company_name, "Travel Expenses - _TC3", approval_status="Rejected"
-		)
-		expense_claim.submit()
 
-		self.assertEqual(expense_claim.status, "Rejected")
-		self.assertEqual(expense_claim.total_sanctioned_amount, 0.0)
-
-		gl_entry = frappe.get_all(
-			"GL Entry", {"voucher_type": "Expense Claim", "voucher_no": expense_claim.name}
-		)
-		self.assertEqual(len(gl_entry), 0)
-
-	def test_expense_approver_perms(self):
-		user = "test_approver_perm_emp@example.com"
-		make_employee(user, "_Test Company")
-
-		# check doc shared
-		payable_account = get_payable_account("_Test Company")
-		expense_claim = make_expense_claim(
-			payable_account, 300, 200, "_Test Company", "Travel Expenses - _TC", do_not_submit=True
-		)
-		expense_claim.expense_approver = user
-		expense_claim.save()
-		self.assertTrue(expense_claim.name in frappe.share.get_shared("Expense Claim", user))
-
-		# check shared doc revoked
-		expense_claim.reload()
-		expense_claim.expense_approver = "test@example.com"
-		expense_claim.save()
-		self.assertTrue(expense_claim.name not in frappe.share.get_shared("Expense Claim", user))
-
-		expense_claim.reload()
-		expense_claim.expense_approver = user
-		expense_claim.save()
-
-		frappe.set_user(user)
-		expense_claim.reload()
-		expense_claim.status = "Approved"
-		expense_claim.submit()
-		frappe.set_user("Administrator")
 
 	def test_multiple_payment_entries_against_expense(self):
 		# Creating expense claim
@@ -756,19 +692,17 @@ class TestExpenseClaim(HRMSTestSuite):
 		expense_claim.expenses[0].project = project
 		expense_claim.submit()
 
-		dimensions = frappe.db.get_value(
+		project_dimension = frappe.db.get_value(
 			"GL Entry",
 			{
 				"voucher_type": "Expense Claim",
 				"voucher_no": expense_claim.name,
 				"account": "Travel Expenses - _TC3",
 			},
-			["cost_center", "project"],
-			as_dict=1,
+			"project",
 		)
 
-		self.assertEqual(dimensions.project, project)
-		self.assertEqual(dimensions.cost_center, expense_claim.cost_center)
+		self.assertEqual(project_dimension, project)
 
 	def test_rounding(self):
 		payable_account = get_payable_account(company_name)
@@ -897,77 +831,7 @@ class TestExpenseClaim(HRMSTestSuite):
 
 		frappe.set_user("Administrator")
 
-	def test_self_expense_approval(self):
-		frappe.db.set_single_value("HR Settings", "prevent_self_expense_approval", 0)
 
-		employee = frappe.get_doc(
-			"Employee",
-			make_employee("test_self_expense_approval@example.com", "_Test Company"),
-		)
-
-		from frappe.utils.user import add_role
-
-		add_role(employee.user_id, "Expense Approver")
-
-		payable_account = get_payable_account("_Test Company")
-		expense_claim = make_expense_claim(
-			payable_account,
-			300,
-			200,
-			"_Test Company",
-			"Travel Expenses - _TC",
-			do_not_submit=True,
-			employee=employee.name,
-		)
-
-		frappe.set_user(employee.user_id)
-		expense_claim.submit()
-
-		self.assertEqual(1, expense_claim.docstatus)
-
-	def test_self_expense_approval_not_allowed(self):
-		frappe.db.set_single_value("HR Settings", "prevent_self_expense_approval", 1)
-
-		expense_approver = "test_expense_approver@example.com"
-		make_employee(expense_approver, company="_Test Company")
-
-		employee = frappe.get_doc(
-			"Employee",
-			make_employee(
-				"test_self_expense_approval@example.com",
-				company="_Test Company",
-				expense_approver=expense_approver,
-			),
-		)
-
-		from frappe.utils.user import add_role
-
-		add_role(employee.user_id, "Expense Approver")
-		add_role(expense_approver, "Expense Approver")
-
-		payable_account = get_payable_account("_Test Company")
-		expense_claim = make_expense_claim(
-			payable_account,
-			300,
-			200,
-			"_Test Company",
-			"Travel Expenses - _TC",
-			do_not_submit=True,
-			employee=employee.name,
-		)
-
-		expense_claim.expense_approver = expense_approver
-		expense_claim.save()
-
-		frappe.set_user(employee.user_id)
-
-		self.assertRaises(frappe.ValidationError, expense_claim.submit)
-		expense_claim.reload()
-
-		frappe.set_user(expense_approver)
-		expense_claim.submit()
-
-		self.assertEqual(1, expense_claim.docstatus)
 
 	def test_advance_in_different_currency_excluded_from_claim(self):
 		from hrms.hr.doctype.employee_advance.test_employee_advance import (
@@ -1341,13 +1205,10 @@ def generate_taxes(company=None, rate=None) -> dict:
 		parent_account=parent_account,
 	)
 
-	cost_center = frappe.db.get_value("Company", company, "cost_center")
-
 	return {
 		"taxes": [
 			{
 				"account_head": account,
-				"cost_center": cost_center,
 				"rate": rate or 9,
 				"description": "CGST",
 			}
@@ -1367,19 +1228,17 @@ def make_expense_claim(
 	do_not_submit=False,
 	taxes=None,
 	employee=None,
-	approval_status="Approved",
 ):
 	if not employee:
 		employee = frappe.db.get_value("Employee", {"status": "Active", "company": company})
 		if not employee:
 			employee = make_employee("test_employee@expenseclaim.com", company=company)
 
-	currency, cost_center = frappe.db.get_value("Company", company, ["default_currency", "cost_center"])
+	currency = frappe.db.get_value("Company", company, "default_currency")
 	expense_claim = {
 		"doctype": "Expense Claim",
 		"employee": employee,
 		"payable_account": payable_account,
-		"approval_status": approval_status,
 		"company": company,
 		"currency": currency,
 		"exchange_rate": 1,
@@ -1390,7 +1249,6 @@ def make_expense_claim(
 				"currency": currency,
 				"amount": amount,
 				"sanctioned_amount": sanctioned_amount,
-				"cost_center": cost_center,
 			}
 		],
 	}
@@ -1414,7 +1272,6 @@ def make_expense_claim(
 
 def make_claim_payment_entry(expense_claim, amount):
 	from hrms.overrides.employee_payment_entry import get_payment_entry_for_employee
-
 	pe = get_payment_entry_for_employee("Expense Claim", expense_claim.name)
 	pe.reference_no = "1"
 	pe.reference_date = nowdate()
@@ -1422,7 +1279,6 @@ def make_claim_payment_entry(expense_claim, amount):
 	pe.references[0].allocated_amount = amount
 	pe.insert()
 	pe.submit()
-
 	return pe
 
 
@@ -1449,7 +1305,6 @@ def make_journal_entry(expense_claim, do_not_submit=False):
 			"reference_type": "Expense Claim",
 			"party_type": "Employee",
 			"party": expense_claim.employee,
-			"cost_center": erpnext.get_default_cost_center(expense_claim.company),
 			"reference_name": expense_claim.name,
 		},
 	)
@@ -1461,7 +1316,6 @@ def make_journal_entry(expense_claim, do_not_submit=False):
 			"credit_in_account_currency": payable_amount,
 			"balance": default_bank_cash_account.balance,
 			"account_currency": default_bank_cash_account.account_currency,
-			"cost_center": erpnext.get_default_cost_center(expense_claim.company),
 			"account_type": default_bank_cash_account.account_type,
 		},
 	)
@@ -1471,7 +1325,9 @@ def make_journal_entry(expense_claim, do_not_submit=False):
 	je.cheque_date = nowdate()
 
 	if not do_not_submit:
+		je.insert()
 		je.submit()
+		return je
 	return je
 
 

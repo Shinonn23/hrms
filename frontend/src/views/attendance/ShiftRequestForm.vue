@@ -41,22 +41,8 @@ const formFields = createResource({
 	transform(data) {
 		if (props.id) return data
 		return data.filter(
-			(field) => !["employee", "employee_name", "status", "company"].includes(field.fieldname)
+			(field) => !["employee", "employee_name", "company"].includes(field.fieldname)
 		)
-	},
-})
-
-createResource({
-	url: "hrms.api.get_shift_request_approvers",
-	params: { employee: employee.data.name },
-	auto: !props.id,
-	onSuccess(data) {
-		const approver = formFields.data?.find((field) => field.fieldname === "approver")
-		approver.documentList = data?.map((approver) => ({
-			label: approver.full_name ? `${approver.name} : ${approver.full_name}` : approver.name,
-			value: approver.name,
-		}))
-		shiftRequest.value.approver = data[0]?.name
 	},
 })
 
@@ -80,7 +66,6 @@ watch(
 
 // helper functions
 function setFormReadOnly() {
-	if (shiftRequest.value.approver === employee.data.user_id) return
 	formFields.data.map((field) => (field.read_only = true))
 }
 

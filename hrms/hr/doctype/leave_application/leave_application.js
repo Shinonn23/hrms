@@ -3,15 +3,6 @@
 
 frappe.ui.form.on("Leave Application", {
 	setup: function (frm) {
-		frm.set_query("leave_approver", function () {
-			return {
-				query: "hrms.hr.doctype.department_approver.department_approver.get_approvers",
-				filters: {
-					employee: frm.doc.employee,
-					doctype: frm.doc.doctype,
-				},
-			};
-		});
 		frm.set_query("employee", erpnext.queries.employee);
 	},
 
@@ -22,19 +13,10 @@ frappe.ui.form.on("Leave Application", {
 		if (!frm.doc.posting_date) {
 			frm.set_value("posting_date", frappe.datetime.get_today());
 		}
-		if (frm.doc.docstatus == 0) {
-			return frappe.call({
-				method: "hrms.hr.doctype.leave_application.leave_application.get_mandatory_approval",
-				args: {
-					doctype: frm.doc.doctype,
-				},
-				callback: function (r) {
-					if (!r.exc && r.message) {
-						frm.toggle_reqd("leave_approver", true);
-					}
-				},
-			});
-		}
+	},
+
+	onload_post_render(frm) {
+		frm.trigger("half_day_datepicker");
 	},
 
 	validate: function (frm) {
@@ -42,8 +24,22 @@ frappe.ui.form.on("Leave Application", {
 			frm.doc.half_day_date = frm.doc.from_date;
 		} else if (frm.doc.half_day === 0) {
 			frm.doc.half_day_date = "";
+			frm.doc.half_day_period = "";
+			frm.doc.half_day_2 = 0;
+			frm.doc.half_day_date_2 = "";
+			frm.doc.half_day_period_2 = "";
 		}
-		frm.toggle_reqd("half_day_date", cint(frm.doc.half_day));
+		if (!cint(frm.doc.half_day_2)) {
+			frm.doc.half_day_date_2 = "";
+			frm.doc.half_day_period_2 = "";
+		}
+		frm.toggle_reqd(
+			"half_day_date",
+			cint(frm.doc.half_day) && frm.doc.from_date !== frm.doc.to_date,
+		);
+		frm.toggle_reqd("half_day_period", cint(frm.doc.half_day));
+		frm.toggle_reqd("half_day_date_2", cint(frm.doc.half_day_2));
+		frm.toggle_reqd("half_day_period_2", cint(frm.doc.half_day_2));
 	},
 
 	make_dashboard: function (frm) {
@@ -113,7 +109,6 @@ frappe.ui.form.on("Leave Application", {
 		if (frm.doc.docstatus === 0) {
 			frm.trigger("make_dashboard");
 		}
-		frm.trigger("set_form_buttons");
 	},
 
 	async set_employee(frm) {
@@ -128,17 +123,12 @@ frappe.ui.form.on("Leave Application", {
 	employee: function (frm) {
 		frm.trigger("make_dashboard");
 		frm.trigger("get_leave_balance");
-		frm.trigger("set_leave_approver");
-	},
-
-	leave_approver: function (frm) {
-		if (frm.doc.leave_approver) {
-			frm.set_value("leave_approver_name", frappe.user.full_name(frm.doc.leave_approver));
-		}
+		frm.trigger("calculate_total_days");
 	},
 
 	leave_type: function (frm) {
 		frm.trigger("get_leave_balance");
+		frm.trigger("calculate_total_days");
 	},
 
 	half_day: function (frm) {
@@ -150,7 +140,28 @@ frappe.ui.form.on("Leave Application", {
 			}
 		} else {
 			frm.set_value("half_day_date", "");
+			frm.set_value("half_day_period", "");
+			frm.set_value("half_day_2", 0);
 		}
+		frm.trigger("calculate_total_days");
+	},
+
+	half_day_2(frm) {
+		if (frm.doc.half_day_2 && !frm.doc.half_day_date_2) {
+			const firstDate = frm.doc.half_day_date;
+			const defaultDate =
+				firstDate && frm.doc.to_date !== firstDate
+					? frm.doc.to_date
+					: firstDate && frm.doc.from_date !== firstDate
+						? frm.doc.from_date
+						: "";
+			frm.set_value("half_day_date_2", defaultDate || "");
+		}
+		if (!frm.doc.half_day_2) {
+			frm.set_value("half_day_date_2", "");
+			frm.set_value("half_day_period_2", "");
+		}
+		frm.trigger("half_day_datepicker");
 		frm.trigger("calculate_total_days");
 	},
 
@@ -169,6 +180,31 @@ frappe.ui.form.on("Leave Application", {
 	},
 
 	half_day_date(frm) {
+		if (frm.doc.half_day_date && frm.doc.half_day_date === frm.doc.half_day_date_2) {
+			frm.set_value("half_day_date_2", "");
+		}
+		if (frm.doc.half_day_2 && !frm.doc.half_day_date_2 && frm.doc.half_day_date) {
+			const defaultDate =
+				frm.doc.to_date !== frm.doc.half_day_date
+					? frm.doc.to_date
+					: frm.doc.from_date !== frm.doc.half_day_date
+						? frm.doc.from_date
+						: "";
+			frm.set_value("half_day_date_2", defaultDate || "");
+		}
+		frm.trigger("half_day_datepicker");
+		frm.trigger("calculate_total_days");
+	},
+
+	half_day_date_2(frm) {
+		if (frm.doc.half_day_date_2 && frm.doc.half_day_date_2 === frm.doc.half_day_date) {
+			frm.set_value("half_day_date_2", "");
+			frappe.show_alert({
+				message: __("The two half days must be on different dates."),
+				indicator: "orange",
+			});
+		}
+		frm.trigger("half_day_datepicker");
 		frm.trigger("calculate_total_days");
 	},
 
@@ -193,14 +229,40 @@ frappe.ui.form.on("Leave Application", {
 	},
 
 	half_day_datepicker: function (frm) {
-		frm.set_value("half_day_date", "");
-		if (!(frm.doc.half_day && frm.doc.from_date && frm.doc.to_date)) return;
-
-		const half_day_datepicker = frm.fields_dict.half_day_date.datepicker;
-		half_day_datepicker.update({
-			minDate: frappe.datetime.str_to_obj(frm.doc.from_date),
-			maxDate: frappe.datetime.str_to_obj(frm.doc.to_date),
-		});
+		if (!frm.doc.from_date || !frm.doc.to_date) return;
+		if (frm.doc.half_day_date && frm.doc.half_day_date === frm.doc.half_day_date_2) {
+			frm.set_value({ half_day_date_2: "", half_day_period_2: "" });
+			return;
+		}
+		const minDate = frappe.datetime.str_to_obj(frm.doc.from_date);
+		const maxDate = frappe.datetime.str_to_obj(frm.doc.to_date);
+		const firstDate = frm.doc.half_day_date
+			? moment(frappe.datetime.str_to_obj(frm.doc.half_day_date)).format("YYYY-MM-DD")
+			: null;
+		const secondDate = frm.doc.half_day_date_2
+			? moment(frappe.datetime.str_to_obj(frm.doc.half_day_date_2)).format("YYYY-MM-DD")
+			: null;
+		for (const fieldname of ["half_day_date", "half_day_date_2"]) {
+			const field = frm.fields_dict[fieldname];
+			if (!field) continue;
+			const disabledDate = fieldname === "half_day_date" ? secondDate : firstDate;
+			field.df.min_date = minDate;
+			field.df.max_date = maxDate;
+			field.df.disabled_dates = disabledDate ? [disabledDate] : [];
+			field.datepicker?.update({
+				minDate,
+				maxDate,
+				onRenderCell: (date, cellType) => {
+					if (
+						cellType === "day" &&
+						disabledDate &&
+						moment(date).format("YYYY-MM-DD") === disabledDate
+					) {
+						return { disabled: true, classes: "disabled" };
+					}
+				},
+			});
+		}
 	},
 
 	get_leave_balance: function (frm) {
@@ -233,21 +295,28 @@ frappe.ui.form.on("Leave Application", {
 	},
 
 	calculate_total_days: function (frm) {
+		const request_id = (frm._leave_days_request_id || 0) + 1;
+		frm._leave_days_request_id = request_id;
+
 		if (frm.doc.from_date && frm.doc.to_date && frm.doc.employee && frm.doc.leave_type) {
 			// server call is done to include holidays in leave days calculations
+			const args = {
+				employee: frm.doc.employee,
+				leave_type: frm.doc.leave_type,
+				from_date: frm.doc.from_date,
+				to_date: frm.doc.to_date,
+				half_day: frm.doc.half_day,
+				half_day_date: frm.doc.half_day_date,
+				half_day_2: frm.doc.half_day_2,
+				half_day_date_2: frm.doc.half_day_date_2,
+				leave_application: frm.is_new() ? null : frm.doc.name,
+			};
 			return frappe.call({
 				method: "hrms.hr.doctype.leave_application.leave_application.get_number_of_leave_days",
-				args: {
-					employee: frm.doc.employee,
-					leave_type: frm.doc.leave_type,
-					from_date: frm.doc.from_date,
-					to_date: frm.doc.to_date,
-					half_day: frm.doc.half_day,
-					half_day_date: frm.doc.half_day_date,
-					leave_application: frm.is_new() ? null : frm.doc.name,
-				},
+				args,
 				callback: function (r) {
-					if (r && r.message) {
+					if (request_id !== frm._leave_days_request_id) return;
+					if (r && r.message != null) {
 						frm.set_value("total_leave_days", r.message);
 						frm.trigger("get_leave_balance");
 					}
@@ -256,45 +325,6 @@ frappe.ui.form.on("Leave Application", {
 		}
 	},
 
-	set_leave_approver: function (frm) {
-		if (frm.doc.employee) {
-			return frappe.call({
-				method: "hrms.hr.doctype.leave_application.leave_application.get_leave_approver",
-				args: {
-					employee: frm.doc.employee,
-					leave_application: frm.is_new() ? null : frm.doc.name,
-				},
-				callback: function (r) {
-					if (r && r.message) {
-						frm.set_value("leave_approver", r.message);
-					}
-				},
-			});
-		}
-	},
-
-	set_form_buttons: async function (frm) {
-		let self_approval_not_allowed = frm.doc.__onload
-			? frm.doc.__onload.self_leave_approval_not_allowed
-			: 0;
-		let current_employee = await hrms.get_current_employee();
-		if (
-			frm.doc.docstatus === 0 &&
-			!frm.is_dirty() &&
-			!frappe.model.has_workflow(frm.doctype)
-		) {
-			if (self_approval_not_allowed && current_employee == frm.doc.employee) {
-				frm.set_df_property("status", "read_only", 1);
-				frm.trigger("show_save_button");
-			}
-		}
-	},
-	show_save_button: function (frm) {
-		frm.page.set_primary_action(__("Save"), () => {
-			frm.save();
-		});
-		$(".form-message").prop("hidden", true);
-	},
 	posting_date: function (frm) {
 		frm.trigger("make_dashboard");
 		frm.trigger("get_leave_balance");
@@ -328,12 +358,5 @@ frappe.tour["Leave Application"] = [
 		fieldname: "half_day",
 		title: "Half Day",
 		description: __("To apply for a Half Day check 'Half Day' and select the Half Day Date"),
-	},
-	{
-		fieldname: "leave_approver",
-		title: "Leave Approver",
-		description: __(
-			"Select your Leave Approver i.e. the person who approves or rejects your leaves.",
-		),
 	},
 ];

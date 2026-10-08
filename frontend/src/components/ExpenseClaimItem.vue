@@ -57,24 +57,11 @@ const statusMap = {
 	Cancelled: "red",
 	Paid: "green",
 	Unpaid: "orange",
-	"Approved & Draft": "gray",
-	"Approved & Unpaid": "orange",
-	"Approved & Submitted": "blue",
-	Rejected: "red",
 }
 
 const status = computed(() => {
-	if (props.workflowStateField) {
-		return props.doc[props.workflowStateField]
-	} else if (
-		props.doc.approval_status === "Approved" &&
-		["Draft", "Unpaid", "Submitted"].includes(props.doc.status)
-	) {
-		return `${props.doc.approval_status} & ${props.doc.status}`
-	} else if (props.doc.approval_status === "Rejected") {
-		return "Rejected"
-	}
-	return props.doc.status
+	if (props.workflowStateField) return props.doc[props.workflowStateField]
+	return props.doc.status || (["Draft", "Submitted", "Cancelled"][props.doc.docstatus] ?? "Draft")
 })
 
 const claimTitle = computed(() => {
@@ -96,10 +83,5 @@ const claimDates = computed(() => {
 			"D MMM"
 		)}`
 	}
-})
-
-
-const approvalStatus = computed(() => {
-	return props.doc.approval_status === "Draft" ? "Pending" : props.doc.approval_status
 })
 </script>

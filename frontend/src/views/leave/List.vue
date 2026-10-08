@@ -25,16 +25,8 @@ const LEAVE_FIELDS = [
 	"from_date",
 	"to_date",
 	"total_leave_days",
-	"status",
 ]
-const STATUS_FILTER_OPTIONS = ["Open", "Approved", "Rejected"] // __("Open"), __("Approved"), __("Rejected")
 const FILTER_CONFIG = [
-	{
-		fieldname: "status",
-		fieldtype: "Select",
-		label: __("Status"),
-		options: STATUS_FILTER_OPTIONS,
-	},
 	{
 		fieldname: "leave_type",
 		fieldtype: "Link",

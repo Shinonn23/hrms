@@ -15,7 +15,7 @@ from hrms.tests.utils import HRMSTestSuite
 
 
 class TestEmployeeReferral(HRMSTestSuite):
-	def test_workflow_and_status_sync(self):
+	def test_referral_status_sync(self):
 		emp_ref = create_employee_referral()
 
 		# Check Initial status

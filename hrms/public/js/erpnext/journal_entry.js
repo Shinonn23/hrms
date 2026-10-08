@@ -57,15 +57,6 @@ frappe.ui.form.on("Journal Entry", {
 
 			if (["Sales Invoice", "Purchase Invoice"].includes(jvd.reference_type)) {
 				out.filters.push([jvd.reference_type, "outstanding_amount", "!=", 0]);
-				// Filter by cost center
-				if (jvd.cost_center) {
-					out.filters.push([
-						jvd.reference_type,
-						"cost_center",
-						"in",
-						["", jvd.cost_center],
-					]);
-				}
 				// account filter
 				frappe.model.validate_missing(jvd, "account");
 				const party_account_field =

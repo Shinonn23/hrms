@@ -87,31 +87,6 @@ def update_job_applicant_and_offer(doc, method=None):
 		frappe.msgprint(msg)
 
 
-def update_approver_role(doc, method=None):
-	"""Adds relevant approver role for the user linked to Employee"""
-	if doc.leave_approver:
-		user = frappe.get_doc("User", doc.leave_approver)
-		user.flags.ignore_permissions = True
-		user.add_roles("Leave Approver")
-
-	if doc.expense_approver:
-		user = frappe.get_doc("User", doc.expense_approver)
-		user.flags.ignore_permissions = True
-		user.add_roles("Expense Approver")
-
-
-def update_approver_user_roles(doc, method=None):
-	approver_roles = set()
-	if frappe.db.exists("Employee", {"leave_approver": doc.name}):
-		approver_roles.add("Leave Approver")
-
-	if frappe.db.exists("Employee", {"expense_approver": doc.name}):
-		approver_roles.add("Expense Approver")
-
-	if approver_roles:
-		doc.append_roles(*approver_roles)
-
-
 def update_employee_transfer(doc, method=None):
 	"""Unsets Employee ID in Employee Transfer if doc is deleted"""
 	if frappe.db.exists("Employee Transfer", {"new_employee_id": doc.name, "docstatus": 1}):

@@ -118,7 +118,6 @@ class TestOvertimeSlip(HRMSTestSuite):
 			payable_account=company.default_payroll_payable_account,
 			currency=company.default_currency,
 			company=company.name,
-			cost_center="Main - _TC",
 		)
 
 		payroll_entry.create_overtime_slips()
@@ -181,7 +180,6 @@ class TestOvertimeSlip(HRMSTestSuite):
 			payable_account=company.default_payroll_payable_account,
 			currency=company.default_currency,
 			company=company.name,
-			cost_center="Main - _TC",
 		)
 
 		payroll_entry.create_overtime_slips()

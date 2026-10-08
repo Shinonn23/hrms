@@ -697,7 +697,14 @@ class SalarySlip(TransactionBase):
 			fraction_of_daily_salary_per_leave = flt(leave.fraction_of_daily_salary_per_leave)
 
 			is_half_day_leave = False
-			if cint(leave.half_day) and (leave.half_day_date == d or leave.from_date == leave.to_date):
+			if (
+				(cint(leave.half_day) and leave.half_day_date == d)
+				or (cint(leave.half_day_2) and leave.half_day_date_2 == d)
+				or (
+					leave.from_date == leave.to_date
+					and (cint(leave.half_day) or cint(leave.half_day_2))
+				)
+			):
 				is_half_day_leave = True
 
 			equivalent_lwp_count = (1 - daily_wages_fraction_for_half_day) if is_half_day_leave else 1
@@ -2539,11 +2546,12 @@ def get_lwp_or_ppl_for_date_range(employee, start_date, end_date):
 			LeaveApplication.to_date,
 			LeaveApplication.half_day,
 			LeaveApplication.half_day_date,
+			LeaveApplication.half_day_2,
+			LeaveApplication.half_day_date_2,
 		)
 		.where(
 			((LeaveType.is_lwp == 1) | (LeaveType.is_ppl == 1))
 			& (LeaveApplication.docstatus == 1)
-			& (LeaveApplication.status == "Approved")
 			& (LeaveApplication.employee == employee)
 			& ((LeaveApplication.salary_slip.isnull()) | (LeaveApplication.salary_slip == ""))
 			& ((LeaveApplication.from_date <= end_date) & (LeaveApplication.to_date >= start_date))

@@ -309,7 +309,6 @@ class LeaveEncashment(AccountsController):
 					"party": self.employee,
 					"against_voucher_type": self.doctype,
 					"against_voucher": self.name,
-					"cost_center": self.cost_center,
 				},
 				item=self,
 			)
@@ -323,7 +322,6 @@ class LeaveEncashment(AccountsController):
 					"debit": self.encashment_amount,
 					"debit_in_account_currency": self.encashment_amount,
 					"against": self.payable_account,
-					"cost_center": self.cost_center,
 				},
 				item=self,
 			)

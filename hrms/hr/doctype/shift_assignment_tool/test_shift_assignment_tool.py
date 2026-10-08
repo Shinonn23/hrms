@@ -7,7 +7,6 @@ from frappe.utils import add_days, getdate
 from erpnext.setup.doctype.employee.test_employee import make_employee
 
 from hrms.hr.doctype.shift_assignment_tool.shift_assignment_tool import ShiftAssignmentTool
-from hrms.hr.doctype.shift_request.test_shift_request import make_shift_request
 from hrms.hr.doctype.shift_schedule.shift_schedule import get_or_insert_shift_schedule
 from hrms.hr.doctype.shift_type.test_shift_type import make_shift_assignment, setup_shift_type
 from hrms.tests.test_utils import create_company
@@ -44,7 +43,7 @@ class TestShiftAssignmentTool(HRMSTestSuite):
 			"start_date": today,
 		}
 		shift_assignment_tool = ShiftAssignmentTool(args)
-		advanced_filters = [["employee_name", "like", "%test.com%"]]  # excludes emp5
+		advanced_filters = [["name", "in", [self.emp1, self.emp2, self.emp3]]]
 
 		# does not exclude emp1 as dates don't overlap
 		make_shift_assignment(self.shift3.name, self.emp1, add_days(today, -5), add_days(today, -1))
@@ -86,7 +85,7 @@ class TestShiftAssignmentTool(HRMSTestSuite):
 			"start_date": today,
 		}
 		shift_assignment_tool = ShiftAssignmentTool(args)
-		advanced_filters = [["employee_name", "like", "%test.com%"]]  # excludes emp5
+		advanced_filters = [["name", "in", [self.emp1, self.emp2, self.emp3]]]
 
 		# does not exclude emp1 as days don't overlap
 		make_shift_schedule_assignment(self.schedule4, self.emp1)
@@ -107,81 +106,6 @@ class TestShiftAssignmentTool(HRMSTestSuite):
 		self.assertIn(self.emp1, employee_names)
 		self.assertIn(self.emp3, employee_names)
 
-	def test_get_shift_requests(self):
-		today = getdate()
-		setup_shift_type(shift_type="Day Shift")
-
-		for emp in [self.emp1, self.emp2, self.emp3, self.emp4, self.emp5]:
-			employee = frappe.get_doc("Employee", emp)
-			employee.shift_request_approver = "employee1@test.com"
-			employee.save()
-
-		request1 = make_shift_request(
-			employee=self.emp1,
-			employee_name="employee1@test.com",
-			from_date=today,
-			to_date=add_days(today, 10),
-			status="Draft",
-			do_not_submit=1,
-		)
-		# request2
-		make_shift_request(
-			employee=self.emp2,
-			employee_name="employee2@test.com",
-			from_date=add_days(today, 6),
-			to_date=add_days(today, 10),
-			status="Draft",
-			do_not_submit=1,
-		)
-		# request3
-		make_shift_request(
-			employee=self.emp2,
-			employee_name="employee2@test.com",
-			from_date=add_days(today, -5),
-			to_date=add_days(today, -1),
-			status="Draft",
-			do_not_submit=1,
-		)
-		# request4
-		make_shift_request(
-			employee=self.emp4,
-			employee_name="employee4@test.com",
-			status="Approved",
-		)
-		# request5
-		make_shift_request(
-			employee=self.emp5,
-			employee_name="employee5@test.com",
-			status="Approved",
-		)
-		# request excluded as it is approved
-		make_shift_request(
-			employee=self.emp3,
-			employee_name="employee3@test.com",
-			status="Approved",
-		)
-
-		args = {
-			"doctype": "Shift Assignment Tool",
-			"action": "Process Shift Requests",
-			"company": "_Test Company",  # excludes request4
-		}
-		shift_assignment_tool = ShiftAssignmentTool(args)
-		advanced_filters = [["employee_name", "like", "%test.com%"]]  # excludes request5
-
-		shift_requests = shift_assignment_tool.get_employees(advanced_filters)
-		self.assertEqual(len(shift_requests), 3)  # request1, request2, request3
-
-		# excludes request3 as it ends before from_date
-		shift_assignment_tool.from_date = today
-		shift_requests = shift_assignment_tool.get_employees(advanced_filters)
-		self.assertEqual(len(shift_requests), 2)  # request1, request2
-
-		# excludes request2 as it starts after to_date
-		shift_assignment_tool.to_date = add_days(today, 5)
-		shift_requests = shift_assignment_tool.get_employees(advanced_filters)
-		self.assertEqual(len(shift_requests), 1)  # request1
-		self.assertEqual(shift_requests[0].name, request1.name)
 
 	def test_bulk_assign_shift(self):
 		today = getdate()
@@ -243,60 +167,6 @@ class TestShiftAssignmentTool(HRMSTestSuite):
 		self.assertIn(self.emp2, assigned_employees)
 		self.assertIn(self.emp3, assigned_employees)
 
-	def test_bulk_process_shift_requests(self):
-		for emp in [self.emp1, self.emp2, self.emp3]:
-			employee = frappe.get_doc("Employee", emp)
-			employee.shift_request_approver = "employee1@test.com"
-			employee.save()
-
-		setup_shift_type(shift_type="Day Shift")
-		request1 = make_shift_request(
-			employee=self.emp1,
-			employee_name="employee1@test.com",
-			status="Draft",
-			do_not_submit=1,
-		)
-		request2 = make_shift_request(
-			employee=self.emp2,
-			employee_name="employee2@test.com",
-			status="Draft",
-			do_not_submit=1,
-		)
-		request3 = make_shift_request(
-			employee=self.emp3,
-			employee_name="employee3@test.com",
-			status="Draft",
-			do_not_submit=1,
-		)
-
-		args = {
-			"doctype": "Shift Assignment Tool",
-			"action": "Process Shift Requests",
-			"company": "_Test Company",
-		}
-		shift_assignment_tool = ShiftAssignmentTool(args)
-
-		requests = [
-			{"employee": self.emp1, "shift_request": request1.name},
-			{"employee": self.emp2, "shift_request": request2.name},
-		]
-		shift_assignment_tool.bulk_process_shift_requests(requests, "Rejected")
-		processed_shift_requests = frappe.get_list(
-			"Shift Request",
-			filters={"status": "Rejected", "docstatus": 1},
-			pluck="name",
-		)
-		self.assertIn(request1.name, processed_shift_requests)
-		self.assertIn(request2.name, processed_shift_requests)
-
-		requests = [{"employee": self.emp3, "shift_request": request3.name}]
-		shift_assignment_tool.bulk_process_shift_requests(requests, "Approved")
-		status, docstatus = frappe.db.get_value("Shift Request", request3.name, ["status", "docstatus"])
-		self.assertEqual(status, "Approved")
-		self.assertEqual(docstatus, 1)
-
-		shift_assignment = frappe.db.exists("Shift Assignment", {"shift_request": request3.name})
-		self.assertTrue(shift_assignment)
 
 
 def make_shift_schedule_assignment(schedule, employee, create_shifts_after=None, enabled=1):

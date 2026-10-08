@@ -149,7 +149,9 @@ class TestEmployeeReminders(HRMSTestSuite):
 		send_work_anniversary_reminders()
 
 		email_queue = frappe.qb.from_("Email Queue").select("*").run(as_dict=True)
-		self.assertTrue("Subject: Work Anniversary Reminder" in email_queue[0].message)
+		self.assertTrue(
+			any("Subject: Work Anniversary Reminder" in email.message for email in email_queue)
+		)
 
 	def test_work_anniversary_reminder_not_sent_for_0_years(self):
 		make_employee(

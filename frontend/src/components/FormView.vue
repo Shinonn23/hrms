@@ -421,7 +421,8 @@ const status = computed(() => {
 		if (stateField) return formModel.value[stateField]
 	}
 
-	return formModel.value.status || formModel.value.approval_status
+	if (formModel.value.status) return formModel.value.status
+	return ["Draft", "Submitted", "Cancelled"][formModel.value.docstatus] || ""
 })
 
 watch(
@@ -603,6 +604,52 @@ const docPermissions = createResource({
 	params: { doctype: props.doctype, docname: props.id },
 })
 
+const submitDocument = createResource({
+	url: "frappe.client.submit",
+	onSuccess(doc) {
+		documentResource.setDoc(doc)
+		toast({
+			title: __("Success"),
+			text: __("{0} submitted successfully!", [__(props.doctype)]),
+			icon: "check-circle",
+			position: "bottom-center",
+			iconClasses: "text-green-500",
+		})
+	},
+	onError() {
+		toast({
+			title: __("Error"),
+			text: __("Error submitting {0}", [__(props.doctype)]),
+			icon: "alert-circle",
+			position: "bottom-center",
+			iconClasses: "text-red-500",
+		})
+	},
+})
+
+const cancelDocument = createResource({
+	url: "frappe.client.cancel",
+	onSuccess(doc) {
+		documentResource.setDoc(doc)
+		toast({
+			title: __("Success"),
+			text: __("{0} cancelled successfully!", [__(props.doctype)]),
+			icon: "check-circle",
+			position: "bottom-center",
+			iconClasses: "text-green-500",
+		})
+	},
+	onError() {
+		toast({
+			title: __("Error"),
+			text: __("Error cancelling {0}", [__(props.doctype)]),
+			icon: "alert-circle",
+			position: "bottom-center",
+			iconClasses: "text-red-500",
+		})
+	},
+})
+
 const permittedWriteFields = createResource({
 	url: "hrms.api.get_permitted_fields_for_write",
 	params: { doctype: props.doctype },
@@ -664,18 +711,20 @@ function validateMandatoryFields() {
 
 async function handleDocUpdate(action) {
 	if (documentResource.doc) {
-		let params = { ...formModel.value }
+		const params = { ...formModel.value }
 
-		if (!validateMandatoryFields()) return
+		if (action !== "cancel" && !validateMandatoryFields()) return
 
-		if (action == "submit") {
-			params.docstatus = 1
-		} else if (action == "cancel") {
-			params.docstatus = 2
+		if (action === "submit") {
+			await submitDocument.submit({ doc: params })
+			await documentResource.reload()
+		} else if (action === "cancel") {
+			await cancelDocument.submit({ doctype: props.doctype, name: props.id })
+			await documentResource.reload()
+		} else {
+			await documentResource.setValue.submit(params)
 		}
 
-		await documentResource.setValue.submit(params)
-		await documentResource.get.promise
 		resetForm()
 	}
 

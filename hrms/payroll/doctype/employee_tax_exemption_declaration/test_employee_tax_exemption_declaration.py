@@ -425,15 +425,26 @@ class TestEmployeeTaxExemptionDeclaration(HRMSTestSuite):
 def create_payroll_period(**args):
 	args = frappe._dict(args)
 	name = args.name or "_Test Payroll Period"
-	if not frappe.db.exists("Payroll Period", name):
-		from datetime import date
+	from datetime import date
 
+	company = args.company or "_Test Company"
+	start_date = args.start_date or date(date.today().year, 1, 1)
+	end_date = args.end_date or date(date.today().year, 12, 31)
+	existing_period = frappe.db.get_value(
+		"Payroll Period",
+		{"company": company, "start_date": start_date, "end_date": end_date},
+		"name",
+	)
+	if existing_period:
+		return frappe.get_doc("Payroll Period", existing_period)
+
+	if not frappe.db.exists("Payroll Period", name):
 		payroll_period = frappe.get_doc(
 			doctype="Payroll Period",
 			name=name,
-			company=args.company or "_Test Company",
-			start_date=args.start_date or date(date.today().year, 1, 1),
-			end_date=args.end_date or date(date.today().year, 12, 31),
+			company=company,
+			start_date=start_date,
+			end_date=end_date,
 		).insert()
 		return payroll_period
 	else:

@@ -304,7 +304,6 @@ def get_leaves(month_start: str, month_end: str, employee_filters: dict[str, str
 		],
 		filters={
 			"docstatus": 1,
-			"status": "Approved",
 			"from_date": ("<=", month_end),
 			"to_date": (">=", month_start),
 		},

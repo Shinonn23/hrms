@@ -2972,11 +2972,6 @@ msgstr ""
 msgid "Employee Company"
 msgstr ""
 
-#. Name of a DocType
-#: hrms/payroll/doctype/employee_cost_center/employee_cost_center.json
-msgid "Employee Cost Center"
-msgstr ""
-
 #. Label of the details_section (Section Break) field in DocType 'Employee
 #. Onboarding'
 #. Label of the employee_details_tab (Tab Break) field in DocType 'Employee
@@ -7712,16 +7707,6 @@ msgstr ""
 #. Name of a DocType
 #: hrms/payroll/doctype/payroll_correction_child/payroll_correction_child.json
 msgid "Payroll Correction Child"
-msgstr ""
-
-#: hrms/setup.py:113 hrms/setup.py:287
-msgid "Payroll Cost Center"
-msgstr ""
-
-#. Label of the section_break_17 (Section Break) field in DocType 'Salary
-#. Structure Assignment'
-#: hrms/payroll/doctype/salary_structure_assignment/salary_structure_assignment.json
-msgid "Payroll Cost Centers"
 msgstr ""
 
 #. Label of the payroll_date (Date) field in DocType 'Additional Salary'

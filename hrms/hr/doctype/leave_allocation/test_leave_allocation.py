@@ -596,8 +596,6 @@ class TestLeaveAllocation(HRMSTestSuite):
 				"to_date": add_months(add_days(nowdate(), 10), 2),
 				"company": self.employee.company,
 				"docstatus": 1,
-				"status": "Approved",
-				"leave_approver": "test@example.com",
 			}
 		)
 		leave_application.submit()

@@ -285,7 +285,6 @@ def create_gratuity(do_not_submit=False, **args):
 		gratuity.expense_account = args.expense_account or "Payment Account - _TC"
 		gratuity.payable_account = args.payable_account or get_payable_account("_Test Company")
 		gratuity.mode_of_payment = args.mode_of_payment or "Cash"
-		gratuity.cost_center = args.cost_center or "Main - _TC"
 
 	gratuity.save()
 	if do_not_submit:

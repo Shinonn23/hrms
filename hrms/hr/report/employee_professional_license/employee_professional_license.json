@@ -1,0 +1,13 @@
+{
+ "doctype": "Report",
+ "name": "Employee Professional License",
+ "report_name": "Employee Professional License",
+ "ref_doctype": "Employee Professional License",
+ "report_type": "Script Report",
+ "is_standard": "Yes",
+ "module": "HR",
+ "roles": [
+  {"role": "HR Manager"},
+  {"role": "System Manager"}
+ ]
+}

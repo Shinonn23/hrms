@@ -15,6 +15,7 @@ class BootStrapTestData:
 
 	def make_master_data(self):
 		self.make_company()
+		self.make_payroll_payable_account()
 		self.make_exchange_rate()
 		self.make_holiday_list()
 		self.make_holiday_list_assignment()
@@ -26,7 +27,6 @@ class BootStrapTestData:
 		self.make_salary_components()
 		self.update_email_account_settings()
 		self.update_system_settings()
-		self.update_hr_settings()
 		# TODO: clean up
 		if frappe.db.get_value("Holiday List Assignment", {"assigned_to": "_Test Company"}, "docstatus") == 0:
 			frappe.get_doc("Holiday List Assignment", {"assigned_to": "_Test Company"}).submit()
@@ -125,6 +125,25 @@ class BootStrapTestData:
 			}
 		]
 		self.make_records(["company_name"], records)
+
+	def make_payroll_payable_account(self):
+		from erpnext.accounts.doctype.account.test_account import create_account
+
+		account = create_account(
+			account_name="_Test Payroll Payable",
+			company="_Test Company",
+			parent_account="Current Liabilities - _TC",
+			account_type="Payable",
+		)
+		frappe.db.set_value("Account", account, "account_type", "Payable", update_modified=False)
+		if not frappe.db.get_value("Company", "_Test Company", "default_payroll_payable_account"):
+			frappe.db.set_value(
+				"Company",
+				"_Test Company",
+				"default_payroll_payable_account",
+				account,
+				update_modified=False,
+			)
 
 	def make_holiday_list_assignment(self):
 		fiscal_year = get_fiscal_year(getdate())
@@ -228,7 +247,6 @@ class BootStrapTestData:
 				"leave_type": "_Test Leave Type",
 				"posting_date": "2013-01-02",
 				"to_date": "2013-05-05",
-				"leave_approver": "Administrator",
 			},
 			{
 				"company": "_Test Company",
@@ -239,7 +257,6 @@ class BootStrapTestData:
 				"leave_type": "_Test Leave Type",
 				"posting_date": "2013-01-02",
 				"to_date": "2013-05-05",
-				"leave_approver": "Administrator",
 			},
 			{
 				"company": "_Test Company",
@@ -250,7 +267,6 @@ class BootStrapTestData:
 				"leave_type": "_Test Leave Type LWP",
 				"posting_date": "2013-01-02",
 				"to_date": "2013-01-15",
-				"leave_approver": "Administrator",
 			},
 		]
 		self.make_records(["employee", "from_date"], records)
@@ -343,9 +359,6 @@ class BootStrapTestData:
 		system_settings.country = "India"
 		system_settings.save()
 
-	def update_hr_settings(self):
-		frappe.db.set_single_value("HR Settings", "leave_approver_mandatory_in_leave_application", 0)
-
 	def make_records(self, key, records):
 		doctype = records[0].get("doctype")
 
@@ -370,7 +383,9 @@ BootStrapTestData()
 class HRMSTestSuite(ERPNextTestSuite):
 	"""Class for creating HRMS test records"""
 
-	pass
+	def tearDown(self):
+		frappe.set_user("Administrator")
+		super().tearDown()
 
 
 def make_user(email: str, role: str = "HR Manager") -> str:

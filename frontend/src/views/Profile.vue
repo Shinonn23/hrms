@@ -201,7 +201,6 @@ const profileLinks = [
 		title: __("Salary Information"),
 		fields: [
 			"ctc",
-			"payroll_cost_center",
 			"pan_number",
 			"provident_fund_account",
 			"salary_mode",

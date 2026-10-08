@@ -81,45 +81,14 @@
 		/>
 
 		<div
-			v-else-if="['Open', 'Draft'].includes(document?.doc?.[approvalField]) && hasPermission('approval')"
-			class="flex w-full flex-row items-center justify-between gap-3 sticky bottom-0 border-t z-[100] p-4"
-		>
-			<Button
-				@click="updateDocumentStatus({ status: 'Rejected' })"
-				class="w-full py-5"
-				variant="subtle"
-				theme="red"
-			>
-				<template #prefix>
-					<FeatherIcon name="x" class="w-4" />
-				</template>
-				{{ __("Reject") }}
-			</Button>
-
-			<Button
-				@click="updateDocumentStatus({ status: 'Approved' })"
-				class="w-full py-5"
-				variant="solid"
-				theme="green"
-			>
-				<template #prefix>
-					<FeatherIcon name="check" class="w-4" />
-				</template>
-				{{ __("Approve") }}
-			</Button>
-		</div>
-
-		<div
 			v-else-if="
 				document?.doc?.docstatus === 0 &&
-				(document?.doc?.doctype === 'Attendance Request' ||
-					['Approved', 'Rejected'].includes(document?.doc?.[approvalField])) &&
 				hasPermission('submit')
 			"
 			class="flex w-full flex-row items-center justify-between gap-3 sticky bottom-0 border-t z-[100] p-4"
 		>
 			<Button
-				@click="updateDocumentStatus({ docstatus: 1 })"
+				@click="updateDocumentStatus(1)"
 				class="w-full py-5"
 				variant="solid"
 			>
@@ -132,7 +101,7 @@
 			class="flex w-full flex-row items-center justify-between gap-3 sticky bottom-0 border-t z-[100] p-4"
 		>
 			<Button
-				@click="updateDocumentStatus({ docstatus: 2 })"
+				@click="updateDocumentStatus(2)"
 				class="w-full py-5"
 				variant="subtle"
 				theme="red"
@@ -171,7 +140,6 @@ import FilePreviewModal from "@/components/FilePreviewModal.vue"
 import WorkflowActionSheet from "@/components/WorkflowActionSheet.vue"
 
 import { getCompanyCurrency } from "@/data/currencies"
-import { settings } from "@/data/settings"
 import { formatCurrency } from "@/utils/formatters"
 
 import useWorkflow from "@/composables/workflow"
@@ -226,22 +194,53 @@ const docPermissions = createResource({
 	auto: true,
 })
 
-const permittedWriteFields = createResource({
-	url: "hrms.api.get_permitted_fields_for_write",
-	params: { doctype: props.modelValue.doctype },
-	auto: true,
+const submitDocument = createResource({
+	url: "frappe.client.submit",
+	onSuccess() {
+		modalController.dismiss()
+		toast({
+			title: __("Success"),
+			text: getSuccessMessage(1),
+			icon: "check-circle",
+			position: "bottom-center",
+			iconClasses: "text-green-500",
+		})
+	},
+	onError() {
+		toast({
+			title: __("Error"),
+			text: getFailureMessage(1),
+			icon: "alert-circle",
+			position: "bottom-center",
+			iconClasses: "text-red-500",
+		})
+	},
 })
 
-const sessionEmployee = inject("$employee")
+const cancelDocument = createResource({
+	url: "frappe.client.cancel",
+	onSuccess() {
+		modalController.dismiss()
+		toast({
+			title: __("Success"),
+			text: getSuccessMessage(2),
+			icon: "check-circle",
+			position: "bottom-center",
+			iconClasses: "text-green-500",
+		})
+	},
+	onError() {
+		toast({
+			title: __("Error"),
+			text: getFailureMessage(2),
+			icon: "alert-circle",
+			position: "bottom-center",
+			iconClasses: "text-red-500",
+		})
+	},
+})
 
 function hasPermission(action) {
-	if (action === "approval" && props.modelValue.doctype === "Leave Application"){
-		// prevent self leave approval
-		const isSelfLeave = document?.doc?.employee === sessionEmployee?.data?.name 
-		if (isSelfLeave && settings.data?.prevent_self_leave_approval)
-			return false
-		return permittedWriteFields.data?.includes(approvalField.value)
-	}
 	return docPermissions.data?.permissions[action]
 }
 
@@ -277,61 +276,22 @@ const fieldsWithValues = computed(() => {
 	})
 })
 
-const approvalField = computed(() => {
-	return props.modelValue.doctype === "Expense Claim"
-		? "approval_status"
-		: "status"
-})
-
-const getSuccessMessage = ({ status = "", docstatus = 0 }) => {
-	if (status) {
-		return __("{0} successfully!", [__(status)])
-	} else if (docstatus) {
-		return __("Document {0} successfully!", [
-			docstatus === 1 ? __("submitted") : __("cancelled")]
-		)
-	}
+const getSuccessMessage = (docstatus) => {
+	return __("Document {0} successfully!", [
+		docstatus === 1 ? __("submitted") : __("cancelled"),
+	])
 }
 
-const getFailureMessage = ({ status = "", docstatus = 0 }) => {
-	if (status) {
-		return __("{0} failed!", [status === __("Approved") ? __("Approval") : __("Rejection")])
-	} else if (docstatus) {
-		return __('Document {0} failed!', [docstatus === 1 ? __("submission") : __("cancellation")])
-	}
+const getFailureMessage = (docstatus) => {
+	return __('Document {0} failed!', [docstatus === 1 ? __("submission") : __("cancellation")])
 }
 
-const updateDocumentStatus = ({ status = "", docstatus = 0 }) => {
-	let updateValues = {}
-
-	if (status) updateValues[approvalField.value] = status
-	if (docstatus) updateValues.docstatus = docstatus
-
-	document.setValue.submit(
-		{ ...updateValues },
-		{
-			onSuccess() {
-				if (docstatus !== 0) modalController.dismiss()
-
-				toast({
-					title: __("Success"),
-					text: getSuccessMessage({ status, docstatus }),
-					icon: "check-circle",
-					position: "bottom-center",
-					iconClasses: "text-green-500",
-				})
-			},
-			onError() {
-				toast({
-					title: __("Error"),
-					text: getFailureMessage({ status, docstatus }),
-					icon: "alert-circle",
-					position: "bottom-center",
-					iconClasses: "text-red-500",
-				})
-			},
-		}
-	)
+const updateDocumentStatus = (docstatus) => {
+	if (docstatus === 1) {
+		submitDocument.submit({ doc: document.doc })
+	} else if (docstatus === 2) {
+		cancelDocument.submit({ doctype: document.doctype, name: document.name })
+	}
 }
 
 const openFormView = () => {

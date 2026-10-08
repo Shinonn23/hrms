@@ -71,9 +71,7 @@ class TestVehicleLog(HRMSTestSuite):
 
 	def test_cancel_vehicle_log_unlinks_draft_expense_claim(self):
 		vehicle_log = make_vehicle_log(self.license_plate, self.employee_id)
-		currency, cost_center = frappe.db.get_value(
-			"Company", "_Test Company", ["default_currency", "cost_center"]
-		)
+		currency = frappe.db.get_value("Company", "_Test Company", "default_currency")
 		expense_claim = frappe.get_doc(
 			{
 				"doctype": "Expense Claim",
@@ -81,7 +79,6 @@ class TestVehicleLog(HRMSTestSuite):
 				"company": "_Test Company",
 				"currency": currency,
 				"exchange_rate": 1,
-				"approval_status": "Approved",
 				"payable_account": frappe.db.get_value("Company", "_Test Company", "default_payable_account"),
 				"vehicle_log": vehicle_log.name,
 				"expenses": [
@@ -91,7 +88,6 @@ class TestVehicleLog(HRMSTestSuite):
 						"currency": currency,
 						"amount": 100,
 						"sanctioned_amount": 100,
-						"cost_center": cost_center,
 					}
 				],
 			}
@@ -121,9 +117,7 @@ class TestVehicleLog(HRMSTestSuite):
 
 	def test_cancel_vehicle_log_deletes_claim_with_only_vehicle_log_expenses(self):
 		vehicle_log = make_vehicle_log(self.license_plate, self.employee_id)
-		currency, cost_center = frappe.db.get_value(
-			"Company", "_Test Company", ["default_currency", "cost_center"]
-		)
+		currency = frappe.db.get_value("Company", "_Test Company", "default_currency")
 
 		expense_claim = frappe.get_doc(
 			{
@@ -132,7 +126,6 @@ class TestVehicleLog(HRMSTestSuite):
 				"company": "_Test Company",
 				"currency": currency,
 				"exchange_rate": 1,
-				"approval_status": "Approved",
 				"payable_account": frappe.db.get_value("Company", "_Test Company", "default_payable_account"),
 				"vehicle_log": vehicle_log.name,
 				"expenses": [
@@ -144,7 +137,6 @@ class TestVehicleLog(HRMSTestSuite):
 						"description": "Vehicle Expenses",
 						"amount": 25000,
 						"sanctioned_amount": 25000,
-						"cost_center": cost_center,
 					}
 				],
 			}
@@ -164,9 +156,7 @@ class TestVehicleLog(HRMSTestSuite):
 
 	def test_cancel_vehicle_log_removes_only_vehicle_log_rows_from_mixed_claim(self):
 		vehicle_log = make_vehicle_log(self.license_plate, self.employee_id)
-		currency, cost_center = frappe.db.get_value(
-			"Company", "_Test Company", ["default_currency", "cost_center"]
-		)
+		currency = frappe.db.get_value("Company", "_Test Company", "default_currency")
 
 		expense_claim = frappe.get_doc(
 			{
@@ -175,7 +165,6 @@ class TestVehicleLog(HRMSTestSuite):
 				"company": "_Test Company",
 				"currency": currency,
 				"exchange_rate": 1,
-				"approval_status": "Approved",
 				"payable_account": frappe.db.get_value("Company", "_Test Company", "default_payable_account"),
 				"vehicle_log": vehicle_log.name,
 				"expenses": [
@@ -187,7 +176,6 @@ class TestVehicleLog(HRMSTestSuite):
 						"description": "Vehicle Expenses",
 						"amount": 25000,
 						"sanctioned_amount": 25000,
-						"cost_center": cost_center,
 					},
 					{
 						"expense_date": nowdate(),
@@ -197,7 +185,6 @@ class TestVehicleLog(HRMSTestSuite):
 						"description": "Accident Repair",
 						"amount": 5000,
 						"sanctioned_amount": 5000,
-						"cost_center": cost_center,
 					},
 				],
 			}
@@ -224,9 +211,7 @@ class TestVehicleLog(HRMSTestSuite):
 
 	def test_cancel_vehicle_log_with_submitted_expense_claim_uses_linked_doc_cancellation(self):
 		vehicle_log = make_vehicle_log(self.license_plate, self.employee_id)
-		currency, cost_center = frappe.db.get_value(
-			"Company", "_Test Company", ["default_currency", "cost_center"]
-		)
+		currency = frappe.db.get_value("Company", "_Test Company", "default_currency")
 		expense_claim = frappe.get_doc(
 			{
 				"doctype": "Expense Claim",
@@ -234,7 +219,6 @@ class TestVehicleLog(HRMSTestSuite):
 				"company": "_Test Company",
 				"currency": currency,
 				"exchange_rate": 1,
-				"approval_status": "Approved",
 				"payable_account": frappe.db.get_value("Company", "_Test Company", "default_payable_account"),
 				"vehicle_log": vehicle_log.name,
 				"expenses": [
@@ -244,7 +228,6 @@ class TestVehicleLog(HRMSTestSuite):
 						"currency": currency,
 						"amount": 100,
 						"sanctioned_amount": 100,
-						"cost_center": cost_center,
 					}
 				],
 			}

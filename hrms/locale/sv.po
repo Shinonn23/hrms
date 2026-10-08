@@ -2897,11 +2897,6 @@ msgstr "Stämpling"
 msgid "Employee Checkin History"
 msgstr "Stämpling Historik"
 
-#. Name of a DocType
-#: hrms/payroll/doctype/employee_cost_center/employee_cost_center.json
-msgid "Employee Cost Center"
-msgstr "Resultat Enhet"
-
 #. Label of the details_section (Section Break) field in DocType 'Employee
 #. Onboarding'
 #. Label of the employee_details_tab (Tab Break) field in DocType 'Employee
@@ -7432,16 +7427,6 @@ msgstr "Lönekorrigering"
 #: hrms/payroll/doctype/payroll_correction_child/payroll_correction_child.json
 msgid "Payroll Correction Child"
 msgstr "Underordnad Lönekorrigering"
-
-#: hrms/setup.py:111 hrms/setup.py:281
-msgid "Payroll Cost Center"
-msgstr "Lön Resultat Enhet"
-
-#. Label of the section_break_17 (Section Break) field in DocType 'Salary
-#. Structure Assignment'
-#: hrms/payroll/doctype/salary_structure_assignment/salary_structure_assignment.json
-msgid "Payroll Cost Centers"
-msgstr "Lön Resultat Enhet"
 
 #. Label of a shortcut in the HR Workspace
 #: hrms/hr/workspace/hr/hr.json

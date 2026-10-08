@@ -49,8 +49,6 @@ class TestPayrollCorrection(HRMSTestSuite):
 				"from_date": payroll_period.start_date,
 				"to_date": payroll_period.start_date,
 				"company": "_Test Company",
-				"status": "Approved",
-				"leave_approver": "test@example.com",
 			}
 		).insert()
 		leave_application.submit()

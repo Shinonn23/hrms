@@ -224,7 +224,6 @@ class AttendanceRequest(Document):
 			"docstatus": 1,
 			"from_date": ("<=", attendance_date),
 			"to_date": (">=", attendance_date),
-			"status": "Approved",
 		}
 		if self.half_day_date == attendance_date:
 			filters["half_day"] = 0
@@ -239,7 +238,6 @@ class AttendanceRequest(Document):
 				"docstatus": 1,
 				"from_date": ("<=", attendance_date),
 				"to_date": (">=", attendance_date),
-				"status": "Approved",
 				"half_day": 1,
 				"half_day_date": attendance_date,
 			},

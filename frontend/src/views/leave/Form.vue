@@ -72,19 +72,10 @@ const formFields = createResource({
 		})
 	},
 	onSuccess(_data) {
-		leaveApprovalDetails.reload()
 		leaveTypes.reload()
 	},
 })
 formFields.reload()
-
-const leaveApprovalDetails = createResource({
-	url: "hrms.api.get_leave_approval_details",
-	params: { employee: currEmployee.value },
-	onSuccess(data) {
-		setLeaveApprovers(data)
-	},
-})
 
 const leaveTypes = createResource({
 	url: "hrms.api.get_leave_types",
@@ -107,7 +98,6 @@ watch(
 		}
 		currEmployee.value = employee_id
 		leaveTypes.fetch({ employee: currEmployee.value, date: today })
-		leaveApprovalDetails.fetch({ employee: currEmployee.value })		
 	}
 )
 watch(
@@ -149,15 +139,6 @@ watch(
 	}
 )
 
-watch(
-	() => leaveApplication.value.leave_approver,
-  	(newApprover) => {
-			const approverField = formFields.data.find(f => f.fieldname === "leave_approver")
-			const selected = approverField?.documentList?.find(opt => opt.value === newApprover)
-			leaveApplication.value.leave_approver_name = selected?.label?.split(" : ")[1] || ""
-  }
-)
-
 // helper functions
 function getFilteredFields(fields) {
 	// reduce noise from the form view by excluding unnecessary fields
@@ -185,7 +166,6 @@ function getFilteredFields(fields) {
 }
 
 function setFormReadOnly() {
-	if (leaveApplication.value.leave_approver === sessionEmployee.data.user_id) return
 	formFields.data.map((field) => (field.read_only = true))
 }
 
@@ -264,24 +244,6 @@ function setHalfDayDateRange() {
 	)
 	half_day_date.minDate = leaveApplication.value.from_date
 	half_day_date.maxDate = leaveApplication.value.to_date
-}
-
-function setLeaveApprovers(data) {
-	const leave_approver = formFields.data?.find(
-		(field) => field.fieldname === "leave_approver"
-	)
-	leave_approver.reqd = data?.is_mandatory
-	leave_approver.documentList = data?.department_approvers.map((approver) => ({
-		label: approver.full_name
-			? `${approver.name} : ${approver.full_name}`
-			: approver.name,
-		value: approver.name,
-	}))
-	if (!leaveApplication.value.leave_approver){
-		leaveApplication.value.leave_approver = data?.leave_approver
-		leaveApplication.value.leave_approver_name = data?.leave_approver_name
-	}
-	
 }
 
 function setLeaveTypes(data) {

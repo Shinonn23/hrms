@@ -30,7 +30,6 @@
   "currency",
   "paid_amount",
   "accounting_dimensions_section",
-  "cost_center",
   "dimension_col_break",
   "payroll",
   "encashment_date",
@@ -243,13 +242,6 @@
    "fieldname": "accounting_dimensions_section",
    "fieldtype": "Section Break",
    "label": "Accounting Dimensions"
-  },
-  {
-   "fieldname": "cost_center",
-   "fieldtype": "Link",
-   "label": "Cost Center",
-   "mandatory_depends_on": "pay_via_payment_entry",
-   "options": "Cost Center"
   },
   {
    "fieldname": "dimension_col_break",

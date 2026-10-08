@@ -56,7 +56,6 @@ class TestSalarySlip(HRMSTestSuite):
 		make_payroll_period(company="_Test Company")
 		frappe.db.set_single_value("Payroll Settings", "email_salary_slip_to_employee", 0)
 		frappe.db.set_single_value("HR Settings", "leave_status_notification_template", None)
-		frappe.db.set_single_value("HR Settings", "leave_approval_notification_template", None)
 		create_ss_email_template()
 		frappe.flags.pop("via_payroll_entry", None)
 
@@ -933,13 +932,16 @@ class TestSalarySlip(HRMSTestSuite):
 
 	@HRMSTestSuite.change_settings("Payroll Settings", {"email_salary_slip_to_employee": 1})
 	def test_email_salary_slip(self):
+		from unittest.mock import patch
+
 		frappe.db.delete("Email Queue")
 
 		emp_id = make_employee("test_email_salary_slip@salary.com", company="_Test Company")
 		ss = make_employee_salary_slip(emp_id, "Monthly", "Test Salary Slip Email")
 		ss.company = "_Test Company"
 		ss.save()
-		ss.submit()
+		with patch("frappe.attach_print", return_value={"fname": "salary-slip.pdf", "fcontent": b"PDF"}):
+			ss.submit()
 
 		self.assertIsNotNone(get_email_by_subject("Salary Slip - from"))
 
@@ -947,13 +949,16 @@ class TestSalarySlip(HRMSTestSuite):
 		"Payroll Settings", {"email_salary_slip_to_employee": 1, "email_template": "Salary Slip"}
 	)
 	def test_email_salary_slip_with_email_template(self):
+		from unittest.mock import patch
+
 		frappe.db.delete("Email Queue")
 
 		emp_id = make_employee("test_email_salary_slip@salary.com", company="_Test Company")
 		ss = make_employee_salary_slip(emp_id, "Monthly", "Test Salary Slip Email")
 		ss.company = "_Test Company"
 		ss.save()
-		ss.submit()
+		with patch("frappe.attach_print", return_value={"fname": "salary-slip.pdf", "fcontent": b"PDF"}):
+			ss.submit()
 
 		self.assertIsNotNone(get_email_by_subject("Test Salary Slip Email Template"))
 
@@ -1749,7 +1754,6 @@ class TestSalarySlip(HRMSTestSuite):
 			currency="INR",
 			company="_Test Company",
 			department=emp2_department,
-			cost_center="Main - _TC",
 		)
 
 		emp2_slip_name = frappe.db.get_value(
@@ -2809,12 +2813,8 @@ def make_leave_application(
 	company=None,
 	half_day=False,
 	half_day_date=None,
-	status=None,
-	leave_approver=None,
 	submit=True,
 ):
-	create_user("test@example.com")
-
 	leave_application = frappe.get_doc(
 		doctype="Leave Application",
 		employee=employee,
@@ -2824,8 +2824,6 @@ def make_leave_application(
 		half_day=half_day,
 		half_day_date=half_day_date,
 		company=company or "_Test Company" or "_Test Company",
-		status=status or "Approved",
-		leave_approver=leave_approver or "test@example.com",
 	).insert()
 
 	if submit:

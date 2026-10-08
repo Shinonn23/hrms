@@ -16,10 +16,7 @@ export default function useWorkflow(doctype) {
 	})
 
 	const getWorkflowStateField = () => {
-		// NOTE: checkbox labelled 'Don't Override Status' is named override_status hence the inverted logic
-		return !workflowDoc.data?.override_status
-			? workflowDoc.data?.workflow_state_field
-			: ""
+		return workflowDoc.data?.workflow_state_field || ""
 	}
 
 	const getDefaultState = (docstatus) => {

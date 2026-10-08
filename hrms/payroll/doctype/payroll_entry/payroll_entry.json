@@ -37,7 +37,6 @@
   "attendance_detail_html",
   "accounting_dimensions_tab",
   "accounting_dimensions_section",
-  "cost_center",
   "dimension_col_break",
   "project",
   "account",
@@ -145,14 +144,6 @@
    "fieldname": "deduct_tax_for_unsubmitted_tax_exemption_proof",
    "fieldtype": "Check",
    "label": "Deduct Tax For Unsubmitted Tax Exemption Proof"
-  },
-  {
-   "default": ":Company",
-   "fieldname": "cost_center",
-   "fieldtype": "Link",
-   "label": "Cost Center",
-   "options": "Cost Center",
-   "reqd": 1
   },
   {
    "fieldname": "project",

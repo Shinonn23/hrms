@@ -11,10 +11,8 @@
   "employee",
   "employee_name",
   "department",
-  "status",
   "column_break_4",
   "company",
-  "approver",
   "from_date",
   "to_date",
   "amended_from"
@@ -82,23 +80,6 @@
    "options": "Shift Request",
    "print_hide": 1,
    "read_only": 1
-  },
-  {
-   "default": "Draft",
-   "fieldname": "status",
-   "fieldtype": "Select",
-   "label": "Status",
-   "options": "Draft\nApproved\nRejected",
-   "reqd": 1
-  },
-  {
-   "fetch_from": "employee.shift_request_approver",
-   "fetch_if_empty": 1,
-   "fieldname": "approver",
-   "fieldtype": "Link",
-   "label": "Approver",
-   "options": "User",
-   "reqd": 1
   }
  ],
  "is_submittable": 1,

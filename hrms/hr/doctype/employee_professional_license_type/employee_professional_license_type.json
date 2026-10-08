@@ -1,0 +1,24 @@
+{
+ "doctype": "DocType",
+ "name": "Employee Professional License Type",
+ "module": "HR",
+ "autoname": "field:license_type_name",
+ "engine": "InnoDB",
+ "track_changes": 1,
+ "field_order": ["license_type_name", "jurisdiction", "issuing_authority", "disabled"],
+ "fields": [
+  {"fieldname": "license_type_name", "fieldtype": "Data", "label": "License Type", "reqd": 1, "unique": 1, "in_list_view": 1, "in_global_search": 1},
+  {"fieldname": "jurisdiction", "fieldtype": "Data", "label": "Jurisdiction", "in_list_view": 1},
+  {"fieldname": "issuing_authority", "fieldtype": "Data", "label": "Issuing Authority", "in_list_view": 1},
+  {"fieldname": "disabled", "fieldtype": "Check", "label": "Disabled", "default": "0", "in_list_view": 1}
+ ],
+ "permissions": [
+  {"role": "HR Manager", "read": 1, "write": 1, "create": 1, "delete": 1, "report": 1, "export": 1, "print": 1, "share": 1},
+  {"role": "System Manager", "read": 1, "write": 1, "create": 1, "delete": 1, "report": 1, "export": 1, "print": 1, "share": 1},
+  {"role": "Employee", "read": 1}
+ ],
+ "sort_field": "license_type_name",
+ "sort_order": "ASC",
+ "title_field": "license_type_name",
+ "quick_entry": 1
+}

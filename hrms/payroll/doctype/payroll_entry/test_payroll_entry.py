@@ -70,7 +70,7 @@ class TestPayrollEntry(HRMSTestSuite):
 
 	def test_payroll_entry(self):
 		company = frappe.get_doc("Company", "_Test Company")
-		employee = frappe.db.get_value("Employee", {"company": "_Test Company"})
+		employee = make_employee("test_payroll_entry_basic@payroll.com", company=company.name)
 		setup_salary_structure(employee, company)
 
 		dates = get_start_end_dates("Monthly", nowdate())
@@ -80,7 +80,6 @@ class TestPayrollEntry(HRMSTestSuite):
 			payable_account=company.default_payroll_payable_account,
 			currency=company.default_currency,
 			company=company.name,
-			cost_center="Main - _TC",
 		)
 
 	def test_multi_currency_payroll_entry(self):
@@ -100,7 +99,6 @@ class TestPayrollEntry(HRMSTestSuite):
 			currency="USD",
 			exchange_rate=70,
 			company=company.name,
-			cost_center="Main - _TC",
 		)
 		payroll_entry.make_bank_entry()
 
@@ -130,104 +128,7 @@ class TestPayrollEntry(HRMSTestSuite):
 		self.assertEqual(salary_slip.base_net_pay, payment_entry[0].total_debit)
 		self.assertEqual(salary_slip.base_net_pay, payment_entry[0].total_credit)
 
-	@HRMSTestSuite.change_settings(
-		"Payroll Settings", {"process_payroll_accounting_entry_based_on_employee": 0}
-	)
-	def test_payroll_entry_with_employee_cost_center(self):
-		department = create_department("Cost Center Test")
 
-		employee1 = make_employee(
-			"test_emp1@example.com",
-			payroll_cost_center="_Test Cost Center - _TC",
-			department=department,
-			company="_Test Company",
-		)
-		employee2 = make_employee("test_emp2@example.com", department=department, company="_Test Company")
-
-		create_assignments_with_cost_centers(employee1, employee2)
-
-		dates = get_start_end_dates("Monthly", nowdate())
-		pe = make_payroll_entry(
-			start_date=dates.start_date,
-			end_date=dates.end_date,
-			payable_account="_Test Payroll Payable - _TC",
-			currency="INR",
-			department=department,
-			company="_Test Company",
-			payment_account="Cash - _TC",
-			cost_center="Main - _TC",
-		)
-		je = frappe.db.get_value("Salary Slip", {"payroll_entry": pe.name}, "journal_entry")
-		jea = frappe.qb.DocType("Journal Entry Account")
-		je_entries = (
-			frappe.qb.from_(jea)
-			.select(jea.account, jea.cost_center, jea.debit, jea.credit)
-			.where(jea.parent == je)
-			.orderby(jea.account)
-			.orderby(jea.cost_center)
-		).run()
-		expected_je = (
-			("_Test Payroll Payable - _TC", "Main - _TC", 0.0, 155600.0),
-			("Salary - _TC", "_Test Cost Center - _TC", 124800.0, 0.0),
-			("Salary - _TC", "_Test Cost Center 2 - _TC", 31200.0, 0.0),
-			("Salary Deductions - _TC", "_Test Cost Center - _TC", 0.0, 320.0),
-			("Salary Deductions - _TC", "_Test Cost Center 2 - _TC", 0.0, 80.0),
-		)
-
-		self.assertEqual(je_entries, expected_je)
-
-	@HRMSTestSuite.change_settings(
-		"Payroll Settings", {"process_payroll_accounting_entry_based_on_employee": 0}
-	)
-	def test_employee_cost_center_breakup(self):
-		"""Test only the latest salary structure assignment is considered for cost center breakup"""
-		COMPANY = "_Test Company"
-		COST_CENTERS = {"_Test Cost Center - _TC": 60, "_Test Cost Center 2 - _TC": 40}
-		department = create_department("Cost Center Test")
-		employee = make_employee("test_emp1@example.com", department=department, company=COMPANY)
-		salary_structure = make_salary_structure(
-			"_Test Salary Structure 2",
-			"Monthly",
-			employee,
-			company=COMPANY,
-		)
-
-		# update cost centers in salary structure assignment for employee
-		new_assignment = frappe.db.get_value(
-			"Salary Structure Assignment",
-			{"employee": employee, "salary_structure": salary_structure.name, "docstatus": 1},
-			"name",
-		)
-		new_assignment = frappe.get_doc("Salary Structure Assignment", new_assignment)
-		new_assignment.payroll_cost_centers = []
-		for cost_center, percentage in COST_CENTERS.items():
-			new_assignment.append(
-				"payroll_cost_centers", {"cost_center": cost_center, "percentage": percentage}
-			)
-		new_assignment.save()
-
-		# make an old salary structure assignment to test and ensure old cost center mapping is excluded
-		old_assignment = frappe.copy_doc(new_assignment)
-		old_assignment.from_date = add_months(new_assignment.from_date, -1)
-		old_assignment.payroll_cost_centers = []
-		old_assignment.append("payroll_cost_centers", {"cost_center": "Main - _TC", "percentage": 100})
-		old_assignment.submit()
-
-		dates = get_start_end_dates("Monthly", nowdate())
-		pe = make_payroll_entry(
-			start_date=dates.start_date,
-			end_date=dates.end_date,
-			payable_account="_Test Payroll Payable - _TC",
-			currency="INR",
-			department=department,
-			company="_Test Company",
-			payment_account="Cash - _TC",
-			cost_center="Main - _TC",
-		)
-
-		# only new cost center breakup is considered
-		cost_centers = pe.get_payroll_cost_centers_for_employee(employee, "_Test Salary Structure 2")
-		self.assertEqual(cost_centers, COST_CENTERS)
 
 	def test_get_end_date(self):
 		self.assertEqual(get_end_date("2017-01-01", "monthly"), {"end_date": "2017-01-31"})
@@ -281,7 +182,6 @@ class TestPayrollEntry(HRMSTestSuite):
 			currency=currency,
 			end_date=dates.end_date,
 			branch=branch,
-			cost_center="Main - _TC",
 			payment_account="Cash - _TC",
 		)
 
@@ -329,7 +229,6 @@ class TestPayrollEntry(HRMSTestSuite):
 			currency=currency,
 			end_date=dates.end_date,
 			branch=branch,
-			cost_center="Main - _TC",
 			payment_account="Cash - _TC",
 		)
 
@@ -353,7 +252,6 @@ class TestPayrollEntry(HRMSTestSuite):
 			payable_account=company_doc.default_payroll_payable_account,
 			currency=company_doc.default_currency,
 			company=company_doc.name,
-			cost_center="Main - _TC",
 		)
 		frappe.flags.enqueue_payroll_entry = True
 		payroll_entry.submit()
@@ -389,7 +287,6 @@ class TestPayrollEntry(HRMSTestSuite):
 			payable_account=company_doc.default_payroll_payable_account,
 			currency=company_doc.default_currency,
 			company=company_doc.name,
-			cost_center="Main - _TC",
 		)
 
 		# set employee as Inactive to check creation failure
@@ -434,7 +331,6 @@ class TestPayrollEntry(HRMSTestSuite):
 			payable_account=company_doc.default_payroll_payable_account,
 			currency=company_doc.default_currency,
 			company=company_doc.name,
-			cost_center="Main - _TC",
 			payment_account="Cash - _TC",
 		)
 		payroll_entry.make_bank_entry()
@@ -471,7 +367,6 @@ class TestPayrollEntry(HRMSTestSuite):
 			payable_account=company_doc.default_payroll_payable_account,
 			currency=company_doc.default_currency,
 			company=company_doc.name,
-			cost_center="Main - _TC",
 			payment_account="Cash - _TC",
 		)
 
@@ -506,7 +401,6 @@ class TestPayrollEntry(HRMSTestSuite):
 			payable_account=company_doc.default_payroll_payable_account,
 			currency=company_doc.default_currency,
 			company=company_doc.name,
-			cost_center="Main - _TC",
 		)
 		payroll_entry.submit()
 		self.assertEqual(payroll_entry.status, "Submitted")
@@ -526,7 +420,6 @@ class TestPayrollEntry(HRMSTestSuite):
 			payable_account=company_doc.default_payroll_payable_account,
 			currency=company_doc.default_currency,
 			company=company_doc.name,
-			cost_center="Main - _TC",
 			payment_account="Cash - _TC",
 		)
 
@@ -543,7 +436,6 @@ class TestPayrollEntry(HRMSTestSuite):
 
 		for jv in jvs:
 			jv_doc = frappe.get_doc("Journal Entry", jv.parent)
-			self.assertEqual(jv_doc.accounts[0].cost_center, payroll_entry.cost_center)
 			jv_doc.cancel()
 
 		payroll_entry.cancel()
@@ -567,7 +459,6 @@ class TestPayrollEntry(HRMSTestSuite):
 			payable_account=company_doc.default_payroll_payable_account,
 			currency=company_doc.default_currency,
 			company=company_doc.name,
-			cost_center="Main - _TC",
 		)
 
 		salary_slip = frappe.db.get_value("Salary Slip", {"payroll_entry": payroll_entry.name}, "name")
@@ -601,7 +492,6 @@ class TestPayrollEntry(HRMSTestSuite):
 			payable_account=company_doc.default_payroll_payable_account,
 			currency=company_doc.default_currency,
 			company=company_doc.name,
-			cost_center="Main - _TC",
 		)
 
 		salary_slip = frappe.db.get_value("Salary Slip", {"payroll_entry": payroll_entry.name}, "name")
@@ -654,7 +544,6 @@ class TestPayrollEntry(HRMSTestSuite):
 			payable_account=company_doc.default_payroll_payable_account,
 			currency=company_doc.default_currency,
 			company=company_doc.name,
-			cost_center="Main - _TC",
 		)
 
 		# check advance deduction entry correctly mapped in accrual entry
@@ -677,78 +566,10 @@ class TestPayrollEntry(HRMSTestSuite):
 
 		self.assertEqual(deduction_entry, expected_entry)
 
-	@HRMSTestSuite.change_settings(
-		"Payroll Settings", {"process_payroll_accounting_entry_based_on_employee": 1}
-	)
-	def test_employee_wise_bank_entry_with_cost_centers(self):
-		department = create_department("Cost Center Test")
-		employee1 = make_employee(
-			"test_emp1@example.com",
-			payroll_cost_center="_Test Cost Center - _TC",
-			department=department,
-			company="_Test Company",
-		)
-		employee2 = make_employee("test_emp2@example.com", department=department, company="_Test Company")
-
-		create_assignments_with_cost_centers(employee1, employee2)
-
-		dates = get_start_end_dates("Monthly", nowdate())
-		payroll_entry = make_payroll_entry(
-			start_date=dates.start_date,
-			end_date=dates.end_date,
-			payable_account="_Test Payroll Payable - _TC",
-			currency="INR",
-			department=department,
-			company="_Test Company",
-			payment_account="Cash - _TC",
-			cost_center="Main - _TC",
-		)
-		payroll_entry.reload()
-		payroll_entry.make_bank_entry()
-
-		debit_entries = frappe.db.get_all(
-			"Journal Entry Account",
-			fields=["party", "account", "cost_center", "debit", "credit"],
-			filters={
-				"reference_type": "Payroll Entry",
-				"reference_name": payroll_entry.name,
-				"docstatus": 0,
-			},
-			order_by="party, cost_center",
-		)
-
-		expected_entries = [
-			# 100% in a single cost center
-			{
-				"party": employee1,
-				"account": "_Test Payroll Payable - _TC",
-				"cost_center": "_Test Cost Center - _TC",
-				"debit": 77800.0,
-				"credit": 0.0,
-			},
-			# 60% of 77800.0
-			{
-				"party": employee2,
-				"account": "_Test Payroll Payable - _TC",
-				"cost_center": "_Test Cost Center - _TC",
-				"debit": 46680.0,
-				"credit": 0.0,
-			},
-			# 40% of 77800.0
-			{
-				"party": employee2,
-				"account": "_Test Payroll Payable - _TC",
-				"cost_center": "_Test Cost Center 2 - _TC",
-				"debit": 31120.0,
-				"credit": 0.0,
-			},
-		]
-
-		self.assertEqual(debit_entries, expected_entries)
 
 	def test_validate_attendance(self):
 		company = frappe.get_doc("Company", "_Test Company")
-		employee = frappe.db.get_value("Employee", {"company": "_Test Company"})
+		employee = make_employee("test_payroll_entry_attendance@payroll.com", company=company.name)
 		setup_salary_structure(employee, company)
 
 		dates = get_start_end_dates("Monthly", nowdate())
@@ -758,7 +579,6 @@ class TestPayrollEntry(HRMSTestSuite):
 			payable_account=company.default_payroll_payable_account,
 			currency=company.default_currency,
 			company=company.name,
-			cost_center="Main - _TC",
 		)
 
 		# case 1: validate unmarked attendance
@@ -810,7 +630,6 @@ class TestPayrollEntry(HRMSTestSuite):
 			payable_account=company.default_payroll_payable_account,
 			currency=company.default_currency,
 			company=company.name,
-			cost_center="Main - _TC",
 		)
 		payroll_entry.validate_attendance = True
 
@@ -851,7 +670,6 @@ class TestPayrollEntry(HRMSTestSuite):
 			payable_account=company_doc.default_payroll_payable_account,
 			currency=company_doc.default_currency,
 			company=company_doc.name,
-			cost_center="Main - _TC",
 		)
 		payroll_entry.submit()
 		payroll_entry.submit_salary_slips()
@@ -899,7 +717,6 @@ class TestPayrollEntry(HRMSTestSuite):
 			currency=currency,
 			end_date=dates.end_date,
 			branch=branch,
-			cost_center="Main - _TC",
 			payment_account="Cash - _TC",
 		)
 
@@ -976,7 +793,6 @@ class TestPayrollEntry(HRMSTestSuite):
 			payable_account=payroll_payable_account,
 			currency=currency,
 			branch=branch,
-			cost_center="Main - _TC",
 			payment_account="Cash - _TC",
 		)
 
@@ -1039,7 +855,6 @@ class TestPayrollEntry(HRMSTestSuite):
 			payable_account=company.default_payroll_payable_account,
 			currency=company.default_currency,
 			company=company.name,
-			cost_center="Main - _TC",
 		)
 
 		# Get and verify salary slip & jv
@@ -1110,7 +925,6 @@ class TestPayrollEntry(HRMSTestSuite):
 			payable_account=company.default_payroll_payable_account,
 			currency=company.default_currency,
 			company=company.name,
-			cost_center="Main - _TC",
 			department=department,
 		)
 
@@ -1180,7 +994,6 @@ class TestPayrollEntry(HRMSTestSuite):
 			payable_account=company.default_payroll_payable_account,
 			currency=company.default_currency,
 			company=company.name,
-			cost_center="Main - _TC",
 			department=department,
 		)
 
@@ -1208,7 +1021,6 @@ class TestPayrollEntry(HRMSTestSuite):
 		self.assertEqual(debit_row.debit, 10000)
 		self.assertFalse(debit_row.party)
 
-	def test_employer_contribution_jv_balances_with_cost_center_split_rounding(self):
 		company = frappe.get_doc("Company", "_Test Company")
 		department = create_department("EC Rounding Test")
 		employee = make_employee("ec_jv_rounding@payroll.com", company=company.name, department=department)
@@ -1232,9 +1044,6 @@ class TestPayrollEntry(HRMSTestSuite):
 			"name",
 		)
 		ssa_doc = frappe.get_doc("Salary Structure Assignment", ssa)
-		ssa_doc.payroll_cost_centers = []
-		ssa_doc.append("payroll_cost_centers", {"cost_center": "_Test Cost Center - _TC", "percentage": 50})
-		ssa_doc.append("payroll_cost_centers", {"cost_center": "_Test Cost Center 2 - _TC", "percentage": 50})
 		ssa_doc.save()
 
 		dates = get_start_end_dates("Monthly", nowdate())
@@ -1244,7 +1053,6 @@ class TestPayrollEntry(HRMSTestSuite):
 			payable_account=company.default_payroll_payable_account,
 			currency=company.default_currency,
 			company=company.name,
-			cost_center="Main - _TC",
 			department=department,
 		)
 
@@ -1307,7 +1115,6 @@ class TestPayrollEntry(HRMSTestSuite):
 			payable_account=company_doc.default_payroll_payable_account,
 			currency=company_doc.default_currency,
 			company="_Test Company",
-			cost_center="Main - _TC",
 		)
 		salary_slip = frappe.get_doc("Salary Slip", {"payroll_entry": payroll_entry.name})
 
@@ -1372,7 +1179,6 @@ class TestPayrollEntry(HRMSTestSuite):
 			payable_account=company_doc.default_payroll_payable_account,
 			currency=company_doc.default_currency,
 			company="_Test Company",
-			cost_center="Main - _TC",
 		)
 		next_salary_slip = frappe.get_doc("Salary Slip", {"payroll_entry": next_month_payroll_entry.name})
 
@@ -1411,7 +1217,7 @@ class TestPayrollEntry(HRMSTestSuite):
 
 	def test_status_on_discard(self):
 		company = frappe.get_doc("Company", "_Test Company")
-		employee = frappe.db.get_value("Employee", {"company": "_Test Company"})
+		employee = make_employee("test_payroll_entry_discard@payroll.com", company=company.name)
 		setup_salary_structure(employee, company)
 
 		dates = get_start_end_dates("Monthly", nowdate())
@@ -1421,7 +1227,6 @@ class TestPayrollEntry(HRMSTestSuite):
 			payable_account=company.default_payroll_payable_account,
 			currency=company.default_currency,
 			company=company.name,
-			cost_center="Main - _TC",
 		)
 		payroll_entry.discard()
 		payroll_entry.reload()
@@ -1460,8 +1265,6 @@ def get_payroll_entry(**args):
 	payroll_entry.currency = args.currency
 	payroll_entry.exchange_rate = args.exchange_rate or 1
 
-	if args.cost_center:
-		payroll_entry.cost_center = args.cost_center
 
 	if args.payment_account:
 		payroll_entry.payment_account = args.payment_account
@@ -1506,23 +1309,6 @@ def setup_salary_structure(employee, company_doc, currency=None, salary_structur
 	)
 
 
-def create_assignments_with_cost_centers(employee1, employee2):
-	company = frappe.get_doc("Company", "_Test Company")
-	setup_salary_structure(employee1, company)
-	ss = setup_salary_structure(employee2, company, salary_structure="_Test Salary Structure 2")
-
-	# update cost centers in salary structure assignment for employee2
-	ssa = frappe.db.get_value(
-		"Salary Structure Assignment",
-		{"employee": employee2, "salary_structure": ss.name, "docstatus": 1},
-		"name",
-	)
-
-	ssa_doc = frappe.get_doc("Salary Structure Assignment", ssa)
-	ssa_doc.payroll_cost_centers = []
-	ssa_doc.append("payroll_cost_centers", {"cost_center": "_Test Cost Center - _TC", "percentage": 60})
-	ssa_doc.append("payroll_cost_centers", {"cost_center": "_Test Cost Center 2 - _TC", "percentage": 40})
-	ssa_doc.save()
 
 
 def setup_lending():

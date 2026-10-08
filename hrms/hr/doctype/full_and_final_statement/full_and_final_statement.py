@@ -266,6 +266,7 @@ class FullandFinalStatement(Document):
 		jv.company = self.company
 		jv.voucher_type = "Bank Entry"
 		jv.posting_date = today()
+		jv.journal_entry_reason = _("Settlement for Full and Final Statement {0}").format(self.name)
 
 		difference = self.total_payable_amount - self.total_receivable_amount
 

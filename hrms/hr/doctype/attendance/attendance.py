@@ -164,13 +164,14 @@ class Attendance(Document):
 				LeaveApplication.leave_type,
 				LeaveApplication.half_day,
 				LeaveApplication.half_day_date,
+				LeaveApplication.half_day_2,
+				LeaveApplication.half_day_date_2,
 				LeaveApplication.name,
 			)
 			.where(
 				(LeaveApplication.employee == self.employee)
 				& (self.attendance_date >= LeaveApplication.from_date)
 				& (self.attendance_date <= LeaveApplication.to_date)
-				& (LeaveApplication.status == "Approved")
 				& (LeaveApplication.docstatus == 1)
 			)
 		).run(as_dict=True)
@@ -179,7 +180,14 @@ class Attendance(Document):
 			for d in leave_record:
 				self.leave_type = d.leave_type
 				self.leave_application = d.name
-				if d.half_day_date == getdate(self.attendance_date):
+				if getdate(self.attendance_date) in {
+					getdate(date)
+					for enabled, date in (
+						(d.half_day, d.half_day_date),
+						(d.half_day_2, d.half_day_date_2),
+					)
+					if enabled and date
+				}:
 					self.status = "Half Day"
 					frappe.msgprint(
 						_("Employee {0} on Half day on {1}").format(
