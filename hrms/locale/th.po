@@ -11472,3 +11472,11 @@ msgstr ""
 msgid "{} {} open for this position."
 msgstr ""
 
+#: hrms/payroll/doctype/payroll_entry/payroll_entry.js
+msgid "Calculate Salary Slips"
+msgstr "คำนวณสลิปเงินเดือน"
+
+#: hrms/payroll/doctype/payroll_entry/payroll_entry.js
+msgid "Please save the document before calculating Salary Slips."
+msgstr "กรุณาบันทึกเอกสารก่อนคำนวณสลิปเงินเดือน"
+

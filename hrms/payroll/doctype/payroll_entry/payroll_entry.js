@@ -72,6 +72,25 @@ frappe.ui.form.on("Payroll Entry", {
 		}
 
 		if (
+			frm.doc.docstatus === 0 &&
+			!frm.is_new() &&
+			frm.doc.employees?.length &&
+			frm.doc.status !== "Queued" &&
+			["Plan Draft", "Plan Rejected"].includes(frm.doc.workflow_state) &&
+			frappe.get_list("Workflow", {
+				name: "Connect Operation Plan - Payroll Entry",
+				document_type: frm.doctype,
+				is_active: 1,
+			}).length
+		) {
+			frm.add_custom_button(__("Calculate Salary Slips"), () => {
+				if (frm.is_dirty())
+					frappe.throw(__("Please save the document before calculating Salary Slips."));
+				return frm.call("create_salary_slips").then(() => frm.reload_doc());
+			});
+		}
+
+		if (
 			(frm.doc.employees || []).length &&
 			!frappe.model.has_workflow(frm.doctype) &&
 			!cint(frm.doc.salary_slips_created) &&
