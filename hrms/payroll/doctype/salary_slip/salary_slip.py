@@ -2177,6 +2177,7 @@ class SalarySlip(TransactionBase):
 		return total
 
 	def email_salary_slip(self):
+		self.run_method("before_salary_slip_email")
 		receiver = frappe.db.get_value("Employee", self.employee, "prefered_email", cache=True)
 		payroll_settings = frappe.get_single("Payroll Settings")
 
@@ -2576,6 +2577,8 @@ def make_salary_slip_from_timesheet(source_name: str, target_doc: str | Document
 	frappe.has_permission("Timesheet", "read", source_name, throw=True)
 	target = frappe.new_doc("Salary Slip")
 	set_missing_values(source_name, target)
+	target.company = frappe.db.get_value("Timesheet", source_name, "company")
+	target.check_permission("read")
 	if not target.check_sal_struct():
 		frappe.throw(
 			_("Cannot create Salary Slip: no active Salary Structure is assigned to employee {0}.").format(

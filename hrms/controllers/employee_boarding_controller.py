@@ -1,6 +1,8 @@
 # Copyright (c) 2021, Frappe Technologies Pvt. Ltd. and Contributors
 # License: GNU General Public License v3. See license.txt
 
+from contextvars import ContextVar
+
 import frappe
 from frappe import _
 from frappe.desk.form import assign_to
@@ -9,6 +11,20 @@ from frappe.utils import add_days, flt, unique
 
 from erpnext.setup.doctype.employee.employee import get_holiday_list_for_employee
 from erpnext.setup.doctype.holiday_list.holiday_list import is_holiday
+
+_BOARDING_DOCUMENT_TOKEN = object()
+_BOARDING_CANCELLATION_SOURCE = ContextVar("boarding_cancellation_source", default=None)
+
+
+def get_native_boarding_source(doc):
+	if doc.flags.get("boarding_document_token") is _BOARDING_DOCUMENT_TOKEN:
+		return doc.flags.get("boarding_source")
+
+
+def get_native_boarding_cancellation_source(doc):
+	source = _BOARDING_CANCELLATION_SOURCE.get()
+	if source and doc.doctype == "Project" and doc.name == source[2]:
+		return source[:2]
 
 
 class EmployeeBoardingController(Document):
@@ -41,7 +57,10 @@ class EmployeeBoardingController(Document):
 				"department": self.department,
 				"company": self.company,
 			}
-		).insert(ignore_permissions=True, ignore_mandatory=True)
+		)
+		project.flags.boarding_document_token = _BOARDING_DOCUMENT_TOKEN
+		project.flags.boarding_source = (self.doctype, self.name)
+		project.insert(ignore_permissions=True, ignore_mandatory=True)
 
 		self.db_set("project", project.name)
 		self.db_set("boarding_status", "Pending")
@@ -70,7 +89,10 @@ class EmployeeBoardingController(Document):
 					"exp_start_date": dates[0],
 					"exp_end_date": dates[1],
 				}
-			).insert(ignore_permissions=True)
+			)
+			task.flags.boarding_document_token = _BOARDING_DOCUMENT_TOKEN
+			task.flags.boarding_source = (self.doctype, self.name)
+			task.insert(ignore_permissions=True)
 			activity.db_set("task", task.name)
 
 			users = [activity.user] if activity.user else []
@@ -143,9 +165,14 @@ class EmployeeBoardingController(Document):
 	def on_cancel(self):
 		# delete task project
 		project = self.project
-		for task in frappe.get_all("Task", filters={"project": project}):
-			frappe.delete_doc("Task", task.name, force=1)
-		frappe.delete_doc("Project", project, force=1)
+		# Task deletion saves its Project after the boarding document is cancelled.
+		token = _BOARDING_CANCELLATION_SOURCE.set((self.doctype, self.name, project))
+		try:
+			for task in frappe.get_all("Task", filters={"project": project}):
+				frappe.delete_doc("Task", task.name, force=1)
+			frappe.delete_doc("Project", project, force=1)
+		finally:
+			_BOARDING_CANCELLATION_SOURCE.reset(token)
 		self.db_set("project", "")
 		for activity in self.activities:
 			activity.db_set("task", "")

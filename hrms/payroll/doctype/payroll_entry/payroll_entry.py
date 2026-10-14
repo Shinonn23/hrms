@@ -3,6 +3,7 @@
 
 import datetime
 import json
+from contextvars import ContextVar
 
 from dateutil.relativedelta import relativedelta
 
@@ -36,6 +37,14 @@ from hrms.utils.holiday_list import (
 	get_holiday_list_ranges_for_employees,
 	get_holidays_in_ranges_map,
 )
+
+_NATIVE_PAYROLL_SUBMISSION = ContextVar("native_payroll_submission", default=None)
+
+
+def get_native_payroll_submission_source(doc):
+	source = _NATIVE_PAYROLL_SUBMISSION.get()
+	if source and doc.doctype == "Salary Slip" and doc.name in source[1]:
+		return source[0]
 
 
 class PayrollEntry(Document):
@@ -96,6 +105,7 @@ class PayrollEntry(Document):
 				& (SalarySlip.start_date == self.start_date)
 				& (SalarySlip.end_date == self.end_date)
 				& (SalarySlip.docstatus != 2)
+				& ((SalarySlip.docstatus != 0) | (SalarySlip.payroll_entry != self.name) | SalarySlip.payroll_entry.isnull())
 			)
 		).run(as_dict=True)
 
@@ -332,6 +342,8 @@ class PayrollEntry(Document):
 	@frappe.whitelist(methods=["POST"])
 	def submit_salary_slips(self) -> None:
 		self.check_permission("write")
+		if self.docstatus != 1 or frappe.db.get_value("Payroll Entry", self.name, "docstatus") != 1:
+			frappe.throw(_("Submit the Payroll Entry before submitting its Salary Slips."))
 		salary_slips = self.get_sal_slip_list(ss_status=0)
 
 		if len(salary_slips) > 30 or frappe.flags.enqueue_payroll_entry:
@@ -512,6 +524,7 @@ class PayrollEntry(Document):
 
 	def make_accrual_jv_entry(self, submitted_salary_slips):
 		self.check_permission("write")
+		self.run_method("before_salary_accrual", submitted_salary_slips=submitted_salary_slips)
 		employee_wise_accounting_enabled = frappe.db.get_single_value(
 			"Payroll Settings", "process_payroll_accounting_entry_based_on_employee"
 		)
@@ -711,7 +724,7 @@ class PayrollEntry(Document):
 		journal_entry.company = self.company
 		journal_entry.posting_date = self.posting_date
 		journal_entry.party_not_required = True if not employee_wise_accounting_enabled else False
-		journal_entry.is_system_generated = True
+		journal_entry.mark_as_system_generated()
 
 		journal_entry.set("accounts", accounts)
 		journal_entry.multi_currency = multi_currency
@@ -962,6 +975,8 @@ class PayrollEntry(Document):
 	@frappe.whitelist(methods=["POST"])
 	def make_bank_entry(self, for_withheld_salaries: bool = False) -> Document | None:
 		self.check_permission("write")
+		if self.docstatus != 1 or frappe.db.get_value("Payroll Entry", self.name, "docstatus") != 1:
+			frappe.throw(_("Submit the Payroll Entry before creating its bank payment."))
 		self.employee_based_payroll_payable_entries = {}
 		employee_wise_accounting_enabled = frappe.db.get_single_value(
 			"Payroll Settings", "process_payroll_accounting_entry_based_on_employee"
@@ -1694,6 +1709,8 @@ def get_existing_salary_slips(employees, args):
 
 
 def submit_salary_slips_for_employees(payroll_entry, salary_slips, publish_progress=True):
+	payroll_entry.run_method("before_salary_slip_submission", salary_slips=salary_slips)
+	token = _NATIVE_PAYROLL_SUBMISSION.set((payroll_entry.name, frozenset(row[0] for row in salary_slips)))
 	try:
 		submitted = []
 		unsubmitted = []
@@ -1730,6 +1747,7 @@ def submit_salary_slips_for_employees(payroll_entry, salary_slips, publish_progr
 		log_payroll_failure("submission", payroll_entry, e)
 
 	finally:
+		_NATIVE_PAYROLL_SUBMISSION.reset(token)
 		if not frappe.in_test:
 			frappe.db.commit()  # nosemgrep
 		frappe.publish_realtime("completed_salary_slip_submission", user=frappe.session.user)
