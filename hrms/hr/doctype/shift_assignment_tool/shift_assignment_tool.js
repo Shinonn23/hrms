@@ -83,11 +83,11 @@ frappe.ui.form.on("Shift Assignment Tool", {
 		frm.clear_custom_buttons();
 		frm.page.clear_primary_action();
 
-		if (frm.doc.action === "Assign Shift")
+		if (frm.doc.action === "Assign Shift" && frappe.model.can_create("Shift Assignment"))
 			frm.page.set_primary_action(__("Assign Shift"), () => {
 				frm.trigger("bulk_assign");
 			});
-		else if (frm.doc.action === "Assign Shift Schedule")
+		else if (frm.doc.action === "Assign Shift Schedule" && frappe.model.can_create("Shift Schedule Assignment"))
 			frm.page.set_primary_action(__("Assign Shift Schedule"), () => {
 				frm.trigger("bulk_assign");
 			});

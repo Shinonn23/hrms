@@ -103,6 +103,7 @@ frappe.ui.form.on("Expense Claim", {
 					frm.events.make_payment_entry(frm);
 				},
 				__("Create"),
+				"Payment Entry",
 			);
 		}
 		frm.trigger("update_fields_label");

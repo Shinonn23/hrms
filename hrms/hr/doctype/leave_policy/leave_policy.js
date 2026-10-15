@@ -13,19 +13,23 @@ frappe.ui.form.on("Leave Policy", {
 				});
 			},
 			__("Create"),
+			"Leave Policy Assignment",
 		);
 
-		frm.add_custom_button(
-			__("Bulk Assignment"),
-			function () {
-				frappe.model.with_doctype("Leave Control Panel", () => {
-					const doc = frappe.model.get_new_doc("Leave Control Panel");
-					doc.leave_policy = frm.doc.name;
-					frappe.set_route("Form", "Leave Control Panel", doc.name);
-				});
-			},
-			__("Create"),
-		);
+		if (frappe.model.can_read("Leave Control Panel")) {
+			frm.add_custom_button(
+				__("Bulk Assignment"),
+				function () {
+					frappe.model.with_doctype("Leave Control Panel", () => {
+						const doc = frappe.model.get_new_doc("Leave Control Panel");
+						doc.leave_policy = frm.doc.name;
+						frappe.set_route("Form", "Leave Control Panel", doc.name);
+					});
+				},
+				__("Create"),
+				"Leave Policy Assignment",
+			);
+		}
 
 		frm.page.set_inner_btn_group_as_primary(__("Create"));
 	},

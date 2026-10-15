@@ -50,6 +50,8 @@ frappe.ui.form.on("Bulk Salary Structure Assignment", {
 	},
 
 	set_primary_action(frm) {
+		frm.page.clear_primary_action();
+		if (!frappe.model.can_create("Salary Structure Assignment")) return;
 		frm.page.set_primary_action(__("Assign Structure"), () => {
 			frm.trigger("assign_structure");
 		});

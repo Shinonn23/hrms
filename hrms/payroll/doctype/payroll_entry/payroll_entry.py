@@ -9,6 +9,7 @@ from dateutil.relativedelta import relativedelta
 
 import frappe
 from frappe import _
+from frappe.core.doctype.submission_queue.submission_queue import queue_submission
 from frappe.desk.reportview import get_match_cond
 from frappe.model.document import Document
 from frappe.query_builder.functions import Coalesce, Count
@@ -154,17 +155,7 @@ class PayrollEntry(Document):
 
 	def cancel(self):
 		if len(self.get_linked_salary_slips()) > 50:
-			msg = _("Payroll Entry cancellation is queued. It may take a few minutes")
-			msg += "<br>"
-			msg += _(
-				"In case of any error during this background process, the system will add a comment about the error on this Payroll Entry and revert to the Submitted status"
-			)
-			frappe.msgprint(
-				msg,
-				indicator="blue",
-				title=_("Cancellation Queued"),
-			)
-			self.queue_action("cancel", timeout=3000)
+			queue_submission(self, "_cancel", timeout=3000)
 		else:
 			self._cancel()
 

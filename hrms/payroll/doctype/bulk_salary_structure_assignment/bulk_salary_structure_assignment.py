@@ -62,6 +62,8 @@ class BulkSalaryStructureAssignment(Document):
 
 	@frappe.whitelist(methods=["POST"])
 	def bulk_assign_structure(self, employees: list) -> None:
+		self.check_permission("read")
+		frappe.has_permission("Salary Structure Assignment", "create", throw=True)
 		mandatory_fields = ["salary_structure", "from_date", "company"]
 		validate_bulk_tool_fields(self, mandatory_fields, employees)
 

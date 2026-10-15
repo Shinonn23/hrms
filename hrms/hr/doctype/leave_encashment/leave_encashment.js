@@ -61,6 +61,7 @@ frappe.ui.form.on("Leave Encashment", {
 					frm.events.make_payment_entry(frm);
 				},
 				__("Create"),
+				"Payment Entry",
 			);
 		}
 

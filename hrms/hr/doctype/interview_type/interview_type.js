@@ -6,7 +6,7 @@ frappe.ui.form.on("Interview Type", {
 		if (!frm.doc.__islocal) {
 			frm.add_custom_button(__("Create Interview"), function () {
 				frm.events.create_interview(frm);
-			});
+			}, undefined, "Interview");
 		}
 	},
 	designation: function (frm) {

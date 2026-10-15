@@ -9,7 +9,7 @@ frappe.ui.form.on("Full and Final Statement", {
 		if (frm.doc.docstatus == 1 && frm.doc.status == "Unpaid") {
 			frm.add_custom_button(__("Create Journal Entry"), function () {
 				frm.events.create_journal_entry(frm);
-			});
+			}, undefined, "Journal Entry");
 		}
 	},
 

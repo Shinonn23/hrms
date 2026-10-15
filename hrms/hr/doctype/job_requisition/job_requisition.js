@@ -44,6 +44,7 @@ frappe.ui.form.on("Job Requisition", {
 					});
 				},
 				__("Actions"),
+				"Job Opening",
 			);
 
 			frm.add_custom_button(

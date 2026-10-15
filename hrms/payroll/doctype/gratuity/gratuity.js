@@ -45,7 +45,7 @@ frappe.ui.form.on("Gratuity", {
 						frappe.set_route("Form", doclist[0].doctype, doclist[0].name);
 					},
 				});
-			});
+			}, undefined, "Payment Entry");
 		}
 	},
 

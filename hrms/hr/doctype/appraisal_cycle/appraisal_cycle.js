@@ -29,11 +29,11 @@ frappe.ui.form.on("Appraisal Cycle", {
 
 		let appraisals_created = frm.doc.__onload?.appraisals_created;
 
-		if (frm.doc.status !== "Completed") {
+		if (frm.doc.status !== "Completed" && frappe.model.can_create("Appraisal")) {
 			if (appraisals_created) {
 				frm.add_custom_button(__("Create Appraisals"), () => {
 					frm.trigger("create_appraisals");
-				});
+				}, undefined, "Appraisal");
 			} else {
 				frm.page.set_primary_action(__("Create Appraisals"), () => {
 					frm.trigger("create_appraisals");

@@ -80,7 +80,7 @@ frappe.ui.form.on("Job Applicant", {
 			if (frm.doc.status !== "Rejected" && frm.doc.status !== "Accepted") {
 				frm.add_custom_button(__("Schedule Interview"), () => {
 					frm.events.show_schedule_interview_dialog(frm);
-				});
+				}, undefined, "Interview");
 			}
 		}
 
@@ -92,7 +92,7 @@ frappe.ui.form.on("Job Applicant", {
 			} else {
 				frm.add_custom_button(__("Create Employee"), function () {
 					frm.make_methods.Employee();
-				});
+				}, undefined, "Employee");
 			}
 
 			if (frm.doc.__onload && frm.doc.__onload.job_offer) {
@@ -111,7 +111,7 @@ frappe.ui.form.on("Job Applicant", {
 						designation: frm.doc.job_opening || frm.doc.designation,
 					};
 					frappe.new_doc("Job Offer");
-				});
+				}, undefined, "Job Offer");
 			}
 		}
 	},

@@ -45,7 +45,7 @@ frappe.ui.form.on("Employee Tax Exemption Declaration", {
 					method: "hrms.payroll.doctype.employee_tax_exemption_declaration.employee_tax_exemption_declaration.make_proof_submission",
 					frm: frm,
 				});
-			}).addClass("btn-primary");
+			}, undefined, "Employee Tax Exemption Proof Submission").addClass("btn-primary");
 		}
 	},
 

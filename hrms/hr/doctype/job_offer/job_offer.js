@@ -44,7 +44,7 @@ frappe.ui.form.on("Job Offer", {
 		) {
 			frm.add_custom_button(__("Create Employee"), function () {
 				erpnext.job_offer.make_employee(frm);
-			});
+			}, undefined, "Employee");
 		}
 
 		if (frm.doc.__onload && frm.doc.__onload.employee) {

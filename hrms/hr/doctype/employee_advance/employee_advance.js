@@ -40,6 +40,7 @@ frappe.ui.form.on("Employee Advance", {
 					frm.events.make_payment_entry(frm);
 				},
 				__("Create"),
+				"Payment Entry",
 			);
 		}
 
@@ -72,6 +73,7 @@ frappe.ui.form.on("Employee Advance", {
 						frm.trigger("make_return_entry");
 					},
 					__("Create"),
+					"Journal Entry",
 				);
 			} else if (
 				frm.doc.repay_unclaimed_amount_from_salary == 1 &&
@@ -83,6 +85,7 @@ frappe.ui.form.on("Employee Advance", {
 						frm.events.make_deduction_via_additional_salary(frm);
 					},
 					__("Create"),
+					"Additional Salary",
 				);
 			}
 		}

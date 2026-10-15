@@ -261,6 +261,8 @@ class FullandFinalStatement(Document):
 
 	@frappe.whitelist()
 	def create_journal_entry(self):
+		self.check_permission("read")
+		frappe.has_permission("Journal Entry", "create", throw=True)
 		precision = frappe.get_precision("Journal Entry Account", "debit_in_account_currency")
 		jv = frappe.new_doc("Journal Entry")
 		jv.company = self.company

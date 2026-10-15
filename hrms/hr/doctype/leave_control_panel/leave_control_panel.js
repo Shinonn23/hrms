@@ -76,6 +76,7 @@ frappe.ui.form.on("Leave Control Panel", {
 	},
 
 	allocate_based_on_leave_policy(frm) {
+		frm.trigger("set_primary_action");
 		frm.trigger("get_employees");
 	},
 
@@ -176,6 +177,9 @@ frappe.ui.form.on("Leave Control Panel", {
 	},
 
 	set_primary_action(frm) {
+		frm.page.clear_primary_action();
+		const doctype = frm.doc.allocate_based_on_leave_policy ? "Leave Policy Assignment" : "Leave Allocation";
+		if (!frappe.model.can_create(doctype)) return;
 		frm.page.set_primary_action(__("Allocate Leave"), () => {
 			frm.trigger("allocate_leave");
 		});

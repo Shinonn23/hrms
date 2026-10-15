@@ -9,7 +9,7 @@ frappe.ui.form.on("Job Opening Template", {
 					method: "hrms.hr.doctype.job_opening_template.job_opening_template.create_job_opening_from_template",
 					frm: frm,
 				});
-			});
+			}, undefined, "Job Opening");
 		}
 	},
 });

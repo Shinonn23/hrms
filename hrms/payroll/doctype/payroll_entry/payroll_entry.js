@@ -87,7 +87,7 @@ frappe.ui.form.on("Payroll Entry", {
 				if (frm.is_dirty())
 					frappe.throw(__("Please save the document before calculating Salary Slips."));
 				return frm.call("create_salary_slips").then(() => frm.reload_doc());
-			});
+			}, undefined, "Salary Slip");
 		}
 
 		if (
@@ -104,7 +104,7 @@ frappe.ui.form.on("Payroll Entry", {
 							doc: frm.doc,
 							method: "create_overtime_slips",
 						});
-					});
+					}, undefined, "Overtime Slip");
 				} else if (frm.doc.overtime_step === "Submit") {
 					frm.add_custom_button(__("Submit Overtime Slips"), () => {
 						frm.call({
@@ -112,7 +112,7 @@ frappe.ui.form.on("Payroll Entry", {
 							method: "submit_overtime_slips",
 						});
 					});
-				} else {
+				} else if (frappe.model.can_create("Salary Slip")) {
 					frm.page.set_primary_action(__("Create Salary Slips"), () => {
 						frm.save("Submit").then(() => {
 							frm.page.clear_primary_action();
@@ -193,7 +193,7 @@ frappe.ui.form.on("Payroll Entry", {
 		} else if (!frm.doc.salary_slips_created && frm.doc.status === "Failed") {
 			frm.add_custom_button(__("Create Salary Slips"), function () {
 				frm.trigger("create_salary_slip");
-			}).addClass("btn-primary");
+			}, undefined, "Salary Slip").addClass("btn-primary");
 		}
 	},
 
@@ -202,11 +202,11 @@ frappe.ui.form.on("Payroll Entry", {
 			if (!r.message.has_bank_entries) {
 				frm.add_custom_button(__("Make Bank Entry"), function () {
 					make_bank_entry(frm);
-				}).addClass("btn-primary");
+				}, undefined, "Journal Entry").addClass("btn-primary");
 			} else if (!r.message.has_bank_entries_for_withheld_salaries) {
 				frm.add_custom_button(__("Release Withheld Salaries"), function () {
 					make_bank_entry(frm, (for_withheld_salaries = 1));
-				}).addClass("btn-primary");
+				}, undefined, "Journal Entry").addClass("btn-primary");
 			}
 		});
 	},
