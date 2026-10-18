@@ -36,18 +36,26 @@ def get_columns(filters):
 	return columns
 
 
+def get_professional_tax_components():
+	SalaryComponent = DocType("Salary Component")
+	query = frappe.qb.from_(SalaryComponent).select(SalaryComponent.name)
+
+	# `component_type` is a custom field added by regional apps (e.g. India Compliance),
+	# it does not exist on a standard Salary Component
+	if frappe.get_meta("Salary Component").has_field("component_type"):
+		query = query.where(SalaryComponent.component_type == "Professional Tax")
+	else:
+		query = query.where(SalaryComponent.name.like("%Professional Tax%"))
+
+	return query.run(pluck="name")
+
+
 def get_data(filters):
 	data = []
 	SalarySlip = DocType("Salary Slip")
 	SalaryDetail = DocType("Salary Detail")
-	SalaryComponent = DocType("Salary Component")
 
-	component_type_list = (
-		frappe.qb.from_(SalaryComponent)
-		.select(SalaryComponent.name, SalaryComponent.component_type)
-		.where(SalaryComponent.component_type == "Professional Tax")
-		.run(pluck="name")
-	)
+	component_type_list = get_professional_tax_components()
 
 	if not len(component_type_list):
 		return []
