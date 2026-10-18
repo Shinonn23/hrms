@@ -27,6 +27,47 @@ def get_native_boarding_cancellation_source(doc):
 		return source[:2]
 
 
+def _can_delete_native_boarding_children(doc, project, tasks):
+	"""Authorize only the persisted generated children of a native boarding cancellation."""
+	if (
+		doc.doctype not in {"Employee Onboarding", "Employee Separation"}
+		or getattr(doc, "_action", None) != "cancel"
+		or doc.docstatus != 2
+	):
+		return False
+	previous = doc.get_doc_before_save()
+	if (
+		not previous
+		or (previous.doctype, previous.name) != (doc.doctype, doc.name)
+		or previous.docstatus != 1
+		or previous.project != project
+		or previous.company != doc.company
+		or previous.get("department") != doc.get("department")
+	):
+		frappe.throw(_("Cancel only the original boarding document and its linked Project."))
+	linked = frappe.get_doc("Project", project)
+	if not linked.get("operation_source_doctype") and not linked.get("operation_source_name"):
+		return False
+	if (
+		(linked.get("operation_source_doctype"), linked.get("operation_source_name"))
+		!= (doc.doctype, doc.name)
+		or linked.company != previous.company
+		or linked.get("department") != previous.get("department")
+	):
+		frappe.throw(_("The generated Project must belong to this boarding document."))
+	activity_tasks = {row.task for row in previous.activities if row.get("task")}
+	for task in tasks:
+		linked_task = frappe.get_doc("Task", task.name)
+		if (
+			task.name not in activity_tasks
+			or linked_task.project != project
+			or linked_task.get("company") != previous.company
+			or linked_task.get("department") != previous.get("department")
+		):
+			frappe.throw(_("Cancel only Tasks generated for this boarding document's activities."))
+	return True
+
+
 class EmployeeBoardingController(Document):
 	"""
 	Create the project and the task for the boarding process
@@ -165,12 +206,16 @@ class EmployeeBoardingController(Document):
 	def on_cancel(self):
 		# delete task project
 		project = self.project
+		if not project:
+			return
+		tasks = frappe.get_all("Task", filters={"project": project})
+		generated_cleanup = _can_delete_native_boarding_children(self, project, tasks)
 		# Task deletion saves its Project after the boarding document is cancelled.
 		token = _BOARDING_CANCELLATION_SOURCE.set((self.doctype, self.name, project))
 		try:
-			for task in frappe.get_all("Task", filters={"project": project}):
-				frappe.delete_doc("Task", task.name, force=1)
-			frappe.delete_doc("Project", project, force=1)
+			for task in tasks:
+				frappe.delete_doc("Task", task.name, force=1, ignore_permissions=generated_cleanup)
+			frappe.delete_doc("Project", project, force=1, ignore_permissions=generated_cleanup)
 		finally:
 			_BOARDING_CANCELLATION_SOURCE.reset(token)
 		self.db_set("project", "")

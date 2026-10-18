@@ -1,6 +1,9 @@
 # Copyright (c) 2022, Frappe Technologies Pvt. Ltd. and Contributors
 # License: GNU General Public License v3. See license.txt
 
+import json
+from contextvars import ContextVar
+
 import frappe
 from frappe import _
 from frappe.model.document import Document
@@ -18,7 +21,18 @@ from erpnext.setup.utils import get_exchange_rate
 from hrms.hr.doctype.expense_claim.expense_claim import get_outstanding_amount_for_claim
 
 
+_EXPENSE_CANCELLATION_SOURCE = ContextVar("expense_payment_cancellation_source", default=None)
+
+
 class EmployeePaymentEntry(PaymentEntry):
+	def on_cancel(self):
+		# This context is server-owned; public reference APIs keep their read checks.
+		token = _EXPENSE_CANCELLATION_SOURCE.set(self)
+		try:
+			return super().on_cancel()
+		finally:
+			_EXPENSE_CANCELLATION_SOURCE.reset(token)
+
 	def get_valid_reference_doctypes(self):
 		if self.party_type == "Customer":
 			return ("Sales Order", "Sales Invoice", "Journal Entry", "Dunning", "Payment Entry")
@@ -42,13 +56,18 @@ class EmployeePaymentEntry(PaymentEntry):
 				):
 					continue
 
-				ref_details = get_payment_reference_details(
-					d.reference_doctype,
-					d.reference_name,
-					self.party_account_currency,
-					self.party_type,
-					self.party,
-				)
+				if _can_recalculate_cancelled_expense_reference(self, d):
+					ref_details = _get_reference_details_for_employee(
+						d.reference_doctype, d.reference_name, self.party_account_currency
+					)
+				else:
+					ref_details = get_payment_reference_details(
+						d.reference_doctype,
+						d.reference_name,
+						self.party_account_currency,
+						self.party_type,
+						self.party,
+					)
 
 				# Only update exchange rate when the reference is Journal Entry
 				if (
@@ -71,6 +90,47 @@ class EmployeePaymentEntry(PaymentEntry):
 							d.db_set(field, value)
 						else:
 							d.set(field, value)
+
+
+def _can_recalculate_cancelled_expense_reference(doc, row):
+	"""Reconcile an already-authorized cancellation without granting source-document read."""
+	if (
+		_EXPENSE_CANCELLATION_SOURCE.get() is not doc
+		or doc.get("_action") != "cancel"
+		or doc.docstatus != 2
+		or doc.party_type != "Employee"
+		or row.reference_doctype != "Expense Claim"
+		or not frappe.has_permission("Payment Entry", "cancel", doc=doc)
+	):
+		return False
+	previous = doc.get_doc_before_save()
+	if not previous or previous.docstatus != 1 or any(
+		doc.get(field) != previous.get(field)
+		for field in (
+			"name", "company", "party_type", "party", "paid_from", "paid_to",
+			"paid_from_account_currency", "paid_to_account_currency", "party_account_currency",
+			"paid_amount", "received_amount",
+		)
+	):
+		return False
+	if [r.name for r in doc.references] != [r.name for r in previous.references]:
+		return False
+	previous_row = next((r for r in previous.references if r.name == row.name), None)
+	if not previous_row:
+		return False
+	def business_values(reference):
+		return json.loads(frappe.as_json({
+			key: value for key, value in reference.as_dict().items()
+			if key not in {"docstatus", "modified", "modified_by", "__unsaved"}
+		}))
+	if business_values(row) != business_values(previous_row):
+		return False
+	reference = frappe.get_doc("Expense Claim", row.reference_name)
+	return (
+		reference.docstatus == 1
+		and reference.company == doc.company
+		and reference.employee == doc.party
+	)
 
 
 @frappe.whitelist()
@@ -270,6 +330,10 @@ def get_reference_details_for_employee(
 	Employee Advance, Expense Claim, Gratuity, Leave Encashment
 	"""
 	frappe.has_permission(reference_doctype, "read", reference_name, throw=True)
+	return _get_reference_details_for_employee(reference_doctype, reference_name, party_account_currency)
+
+
+def _get_reference_details_for_employee(reference_doctype, reference_name, party_account_currency):
 	total_amount = outstanding_amount = exchange_rate = None
 
 	ref_doc = frappe.get_doc(reference_doctype, reference_name)

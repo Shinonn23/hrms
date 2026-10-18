@@ -100,6 +100,9 @@ class SalaryWithholding(Document):
 	def on_discard(self):
 		self.db_set("status", "Cancelled")
 
+	def on_cancel(self):
+		self.set_status(update=True)
+
 
 @frappe.whitelist()
 def get_payroll_frequency(employee: str, posting_date: str | date) -> str | None:

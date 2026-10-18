@@ -26,6 +26,9 @@ class EmployeeCheckin(Document):
 		self.time = get_datetime(self.time).replace(microsecond=0)
 
 	def validate(self):
+		from hrms.hr.doctype.attendance.attendance import validate_employee_access
+
+		validate_employee_access([self.employee])
 		validate_active_employee(self.employee)
 		self.validate_duplicate_log()
 		self.validate_time_change()

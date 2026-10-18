@@ -66,31 +66,20 @@ def get_columns() -> list[dict]:
 
 
 def get_data(filters: dict | None = None) -> list[dict]:
-	Appraisal = frappe.qb.DocType("Appraisal")
-	query = (
-		frappe.qb.from_(Appraisal)
-		.select(
-			Appraisal.employee,
-			Appraisal.employee_name,
-			Appraisal.designation,
-			Appraisal.department,
-			Appraisal.appraisal_cycle,
-			Appraisal.name.as_("appraisal"),
-			Appraisal.avg_feedback_score,
-			Appraisal.total_score.as_("goal_score"),
-			Appraisal.self_score,
-			Appraisal.final_score,
-		)
-		.where(Appraisal.docstatus != 2)
+	filters = filters or {}
+	appraisals = frappe.get_list(
+		"Appraisal",
+		filters={
+			"docstatus": ("!=", 2),
+			**{key: filters[key] for key in ("appraisal_cycle", "employee", "department", "designation", "company") if filters.get(key)},
+		},
+		fields=[
+			"employee", "employee_name", "designation", "department", "appraisal_cycle", "name as appraisal",
+			"avg_feedback_score", "total_score as goal_score", "self_score", "final_score",
+		],
+		order_by="appraisal_cycle asc, final_score desc",
+		limit_page_length=0,
 	)
-
-	for condition in ["appraisal_cycle", "employee", "department", "designation", "company"]:
-		if filters.get(condition):
-			query = query.where(Appraisal[condition] == filters.get(condition))
-
-	query = query.orderby(Appraisal.appraisal_cycle)
-	query = query.orderby(Appraisal.final_score, order=frappe.qb.desc)
-	appraisals = query.run(as_dict=True)
 
 	for row in appraisals:
 		row["feedback_count"] = frappe.db.count(

@@ -25,7 +25,7 @@ import hrms
 from hrms.hr.utils import set_employee_name, validate_active_employee
 
 
-ROLES_ALLOWED_TO_CLAIM_FOR_OTHERS = {"HR User", "HR Manager", "Expense Approver"}
+ROLES_ALLOWED_TO_CLAIM_FOR_OTHERS = {"HR User", "HR Manager", "Expense Approver", "Expense Claim Approver"}
 
 
 class MismatchError(frappe.ValidationError):

@@ -166,6 +166,12 @@ class PayrollEntry(Document):
 		for salary_slip in salary_slips:
 			if salary_slip.docstatus == 1:
 				frappe.get_doc("Salary Slip", salary_slip.name).cancel()
+			corrections = frappe.get_all(
+				"Payroll Correction", filters={"salary_slip_reference": salary_slip.name}, pluck="docstatus"
+			)
+			if corrections and all(status == 2 for status in corrections):
+				# Keep the salary source for cancelled correction history.
+				continue
 			frappe.delete_doc("Salary Slip", salary_slip.name)
 
 	def cancel_linked_journal_entries(self):
@@ -1647,7 +1653,13 @@ def create_salary_slips_for_employees(employees, args, publish_progress=True):
 					title=_("Creating Salary Slips..."),
 				)
 
-		payroll_entry.db_set({"status": "Submitted", "salary_slips_created": 1, "error_message": ""})
+		payroll_entry.db_set(
+			{
+				"status": "Draft" if payroll_entry.docstatus == 0 else "Submitted",
+				"salary_slips_created": 1,
+				"error_message": "",
+			}
+		)
 
 		if salary_slips_exist_for:
 			frappe.msgprint(
