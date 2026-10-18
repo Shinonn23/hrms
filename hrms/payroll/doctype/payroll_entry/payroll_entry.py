@@ -393,6 +393,7 @@ class PayrollEntry(Document):
 					ssd.additional_salary,
 					ss.salary_structure,
 					ss.employee,
+					ss.department,
 				)
 				.where(
 					(ssd.parentfield == component_type)
@@ -423,7 +424,9 @@ class PayrollEntry(Document):
 				if employee_advance:
 					self.add_advance_deduction_entry(item, amount, employee_advance)
 				else:
-					component_dict[item.salary_component] = component_dict.get(item.salary_component, 0) + amount
+					# the cost of each Department is booked on its own row
+					key = (item.salary_component, item.department)
+					component_dict[key] = component_dict.get(key, 0) + amount
 
 				if employee_wise_accounting_enabled:
 					self.set_employee_based_payroll_payable_entries(component_type, item.employee, amount)
@@ -507,9 +510,10 @@ class PayrollEntry(Document):
 
 	def get_account(self, component_dict=None):
 		account_dict = {}
-		for component, amount in component_dict.items():
+		for (component, department), amount in component_dict.items():
 			account = self.get_salary_component_account(component)
-			account_dict[account] = account_dict.get(account, 0) + amount
+			key = (account, department)
+			account_dict[key] = account_dict.get(key, 0) + amount
 
 		return account_dict
 
@@ -614,7 +618,8 @@ class PayrollEntry(Document):
 		for item in employer_contributions:
 			expense_account, liability_account = component_accounts[item.salary_component]
 			item_amount = flt(item.amount, precision)
-			expense_entries[expense_account] = expense_entries.get(expense_account, 0) + item_amount
+			expense_key = (expense_account, item.department)
+			expense_entries[expense_key] = expense_entries.get(expense_key, 0) + item_amount
 
 			# breaks up the liability employee-wise, mirroring the payable rows of the accrual JE
 			liability_key = (liability_account, item.employee if employee_wise_accounting_enabled else None)
@@ -627,7 +632,7 @@ class PayrollEntry(Document):
 		accounts = []
 		currencies = []
 
-		for account, amount in expense_entries.items():
+		for (account, department), amount in expense_entries.items():
 			self.get_accounting_entries_and_payable_amount(
 				account,
 				amount,
@@ -638,6 +643,7 @@ class PayrollEntry(Document):
 				precision,
 				entry_type="debit",
 				accounts=accounts,
+				department=department,
 			)
 
 		for (account, employee), amount in liability_entries.items():
@@ -754,7 +760,7 @@ class PayrollEntry(Document):
 		employee_wise_accounting_enabled,
 	):
 		# Earnings
-		for account, amount in earnings.items():
+		for (account, department), amount in earnings.items():
 			payable_amount = self.get_accounting_entries_and_payable_amount(
 				account,
 				amount,
@@ -765,10 +771,11 @@ class PayrollEntry(Document):
 				precision,
 				entry_type="debit",
 				accounts=accounts,
+				department=department,
 			)
 
 		# Deductions
-		for account, amount in deductions.items():
+		for (account, department), amount in deductions.items():
 			payable_amount = self.get_accounting_entries_and_payable_amount(
 				account,
 				amount,
@@ -779,6 +786,7 @@ class PayrollEntry(Document):
 				precision,
 				entry_type="credit",
 				accounts=accounts,
+				department=department,
 			)
 
 		return payable_amount
@@ -853,6 +861,7 @@ class PayrollEntry(Document):
 		reference_type=None,
 		reference_name=None,
 		is_advance=None,
+		department=None,
 	):
 		exchange_rate, amt = self.get_amount_and_exchange_rate_for_journal_entry(
 			account, amount, company_currency, currencies
@@ -908,6 +917,10 @@ class PayrollEntry(Document):
 			row,
 			accounting_dimensions,
 		)
+
+		# the slips' own department, which Department as an Accounting Dimension must not replace
+		if department:
+			row["department"] = department
 
 		if amt:
 			accounts.append(row)
