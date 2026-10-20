@@ -424,18 +424,27 @@ class PayrollEntry(Document):
 			advance_deductions = self.get_advance_deductions(component_type, salary_components)
 
 			for item in salary_components:
+				employee_cost_centers = self.get_payroll_cost_centers_for_employee(
+					item.employee, item.salary_structure
+				)
 				employee_advance = advance_deductions.get(item.additional_salary)
-				amount = flt(item.amount)
 
-				if employee_advance:
-					self.add_advance_deduction_entry(item, amount, employee_advance)
-				else:
-					# the cost of each Department is booked on its own row
-					key = (item.salary_component, item.department)
-					component_dict[key] = component_dict.get(key, 0) + amount
+				for cost_center, percentage in employee_cost_centers.items():
+					amount_against_cost_center = flt(item.amount) * percentage / 100
 
-				if employee_wise_accounting_enabled:
-					self.set_employee_based_payroll_payable_entries(component_type, item.employee, amount)
+					if employee_advance:
+						self.add_advance_deduction_entry(
+							item, amount_against_cost_center, cost_center, employee_advance
+						)
+					else:
+						# the cost of each Department is booked on its own row
+						key = (item.salary_component, cost_center, item.department)
+						component_dict[key] = component_dict.get(key, 0) + amount_against_cost_center
+
+					if employee_wise_accounting_enabled:
+						self.set_employee_based_payroll_payable_entries(
+							component_type, item.employee, amount_against_cost_center
+						)
 
 			account_details = self.get_account(component_dict=component_dict)
 
@@ -468,6 +477,7 @@ class PayrollEntry(Document):
 		self,
 		item: dict,
 		amount: float,
+		cost_center: str,
 		employee_advance: dict,
 	) -> None:
 		self._advance_deduction_entries.append(
@@ -475,6 +485,7 @@ class PayrollEntry(Document):
 				"employee": item.employee,
 				"account": employee_advance.advance_account,
 				"amount": amount,
+				"cost_center": cost_center,
 				"reference_type": "Employee Advance",
 				"reference_name": employee_advance.employee_advance,
 			}
@@ -492,6 +503,7 @@ class PayrollEntry(Document):
 		for entry in self._advance_deduction_entries:
 			payable_amount = self.get_accounting_entries_and_payable_amount(
 				entry.get("account"),
+				entry.get("cost_center"),
 				entry.get("amount"),
 				currencies,
 				company_currency,
@@ -508,18 +520,71 @@ class PayrollEntry(Document):
 
 		return payable_amount
 
-	def set_employee_based_payroll_payable_entries(self, component_type, employee, amount):
+	def set_employee_based_payroll_payable_entries(
+		self, component_type, employee, amount, salary_structure=None
+	):
 		employee_details = self.employee_based_payroll_payable_entries.setdefault(employee, {})
 
 		employee_details.setdefault(component_type, 0)
 		employee_details[component_type] += amount
 
+		if salary_structure and "salary_structure" not in employee_details:
+			employee_details["salary_structure"] = salary_structure
+
+	def get_payroll_cost_centers_for_employee(self, employee, salary_structure):
+		if not hasattr(self, "employee_cost_centers"):
+			self.employee_cost_centers = {}
+
+		if not self.employee_cost_centers.get(employee):
+			SalaryStructureAssignment = frappe.qb.DocType("Salary Structure Assignment")
+			EmployeeCostCenter = frappe.qb.DocType("Employee Cost Center")
+			assignment_subquery = (
+				frappe.qb.from_(SalaryStructureAssignment)
+				.select(SalaryStructureAssignment.name)
+				.where(
+					(SalaryStructureAssignment.employee == employee)
+					& (SalaryStructureAssignment.salary_structure == salary_structure)
+					& (SalaryStructureAssignment.docstatus == 1)
+					& (SalaryStructureAssignment.from_date <= self.end_date)
+				)
+				.orderby(SalaryStructureAssignment.from_date, order=frappe.qb.desc)
+				.limit(1)
+			)
+			cost_centers = dict(
+				(
+					frappe.qb.from_(EmployeeCostCenter)
+					.select(EmployeeCostCenter.cost_center, EmployeeCostCenter.percentage)
+					.where(EmployeeCostCenter.parent == assignment_subquery)
+				).run(as_list=True)
+			)
+
+			if not cost_centers:
+				default_cost_center, department = frappe.get_cached_value(
+					"Employee", employee, ["payroll_cost_center", "department"]
+				)
+
+				if not default_cost_center and department:
+					default_cost_center = frappe.get_cached_value(
+						"Department", department, "payroll_cost_center"
+					)
+
+				if not default_cost_center:
+					default_cost_center = self.cost_center
+
+				cost_centers = {default_cost_center: 100}
+
+			self.employee_cost_centers.setdefault(employee, cost_centers)
+
+		return self.employee_cost_centers.get(employee, {})
+
 	def get_account(self, component_dict=None):
 		account_dict = {}
-		for (component, department), amount in component_dict.items():
+		for key, amount in component_dict.items():
+			component, cost_center, department = key
 			account = self.get_salary_component_account(component)
-			key = (account, department)
-			account_dict[key] = account_dict.get(key, 0) + amount
+			accounting_key = (account, cost_center, department)
+
+			account_dict[accounting_key] = account_dict.get(accounting_key, 0) + amount
 
 		return account_dict
 
@@ -623,9 +688,25 @@ class PayrollEntry(Document):
 		liability_entries = {}
 		for item in employer_contributions:
 			expense_account, liability_account = component_accounts[item.salary_component]
+
+			# the last cost center takes the rounding remainder so that the expense
+			# splits always sum up to the amount credited against the liability
 			item_amount = flt(item.amount, precision)
-			expense_key = (expense_account, item.department)
-			expense_entries[expense_key] = expense_entries.get(expense_key, 0) + item_amount
+			employee_cost_centers = list(
+				self.get_payroll_cost_centers_for_employee(item.employee, item.salary_structure).items()
+			)
+			allocated = 0
+			for cost_center, percentage in employee_cost_centers[:-1]:
+				split = flt(item_amount * percentage / 100, precision)
+				allocated += split
+				expense_key = (expense_account, cost_center, item.department)
+				expense_entries[expense_key] = expense_entries.get(expense_key, 0) + split
+
+			last_cost_center = employee_cost_centers[-1][0]
+			expense_key = (expense_account, last_cost_center, item.department)
+			expense_entries[expense_key] = expense_entries.get(expense_key, 0) + flt(
+				item_amount - allocated, precision
+			)
 
 			# breaks up the liability employee-wise, mirroring the payable rows of the accrual JE
 			liability_key = (liability_account, item.employee if employee_wise_accounting_enabled else None)
@@ -638,9 +719,10 @@ class PayrollEntry(Document):
 		accounts = []
 		currencies = []
 
-		for (account, department), amount in expense_entries.items():
+		for (account, cost_center, department), amount in expense_entries.items():
 			self.get_accounting_entries_and_payable_amount(
 				account,
+				cost_center or self.cost_center,
 				amount,
 				currencies,
 				company_currency,
@@ -655,6 +737,7 @@ class PayrollEntry(Document):
 		for (account, employee), amount in liability_entries.items():
 			self.get_accounting_entries_and_payable_amount(
 				account,
+				self.cost_center,
 				amount,
 				currencies,
 				company_currency,
@@ -766,9 +849,10 @@ class PayrollEntry(Document):
 		employee_wise_accounting_enabled,
 	):
 		# Earnings
-		for (account, department), amount in earnings.items():
+		for (account, cost_center, department), amount in earnings.items():
 			payable_amount = self.get_accounting_entries_and_payable_amount(
 				account,
+				cost_center or self.cost_center,
 				amount,
 				currencies,
 				company_currency,
@@ -781,9 +865,10 @@ class PayrollEntry(Document):
 			)
 
 		# Deductions
-		for (account, department), amount in deductions.items():
+		for (account, cost_center, department), amount in deductions.items():
 			payable_amount = self.get_accounting_entries_and_payable_amount(
 				account,
+				cost_center or self.cost_center,
 				amount,
 				currencies,
 				company_currency,
@@ -829,6 +914,7 @@ class PayrollEntry(Document):
 
 				payable_amount = self.get_accounting_entries_and_payable_amount(
 					payroll_payable_account,
+					self.cost_center,
 					payable_amount,
 					currencies,
 					company_currency,
@@ -842,6 +928,7 @@ class PayrollEntry(Document):
 		else:
 			payable_amount = self.get_accounting_entries_and_payable_amount(
 				payroll_payable_account,
+				self.cost_center,
 				payable_amount,
 				currencies,
 				company_currency,
@@ -855,6 +942,7 @@ class PayrollEntry(Document):
 	def get_accounting_entries_and_payable_amount(
 		self,
 		account,
+		cost_center,
 		amount,
 		currencies,
 		company_currency,
@@ -876,6 +964,7 @@ class PayrollEntry(Document):
 		row = {
 			"account": account,
 			"exchange_rate": flt(exchange_rate),
+			"cost_center": cost_center,
 			"project": self.project,
 		}
 
@@ -1007,6 +1096,7 @@ class PayrollEntry(Document):
 							salary_detail.parentfield,
 							salary_detail.employee,
 							salary_detail.amount,
+							salary_detail.salary_structure,
 						)
 					if parent_field == "earnings":
 						salary_slip_total += salary_detail.amount
@@ -1082,6 +1172,7 @@ class PayrollEntry(Document):
 						"total_loan_repayment",
 						salary_slip.employee,
 						salary_slip.total_loan_repayment,
+						salary_slip.salary_structure,
 					)
 
 		return total_loan_repayment
@@ -1107,6 +1198,7 @@ class PayrollEntry(Document):
 					"bank_account": self.bank_account,
 					"credit_in_account_currency": flt(amount, precision),
 					"exchange_rate": flt(exchange_rate),
+					"cost_center": self.cost_center,
 				},
 				accounting_dimensions,
 			)
@@ -1127,20 +1219,27 @@ class PayrollEntry(Document):
 					self.payment_account, je_payment_amount, company_currency, currencies
 				)
 
-				accounts.append(
-					self.update_accounting_dimensions(
-						{
-							"account": payroll_payable_account,
-							"debit_in_account_currency": flt(amount, precision),
-							"exchange_rate": flt(exchange_rate),
-							"reference_type": self.doctype,
-							"reference_name": self.name,
-							"party_type": "Employee",
-							"party": employee,
-						},
-						accounting_dimensions,
-					)
+				cost_centers = self.get_payroll_cost_centers_for_employee(
+					employee, employee_details.get("salary_structure")
 				)
+
+				for cost_center, percentage in cost_centers.items():
+					amount_against_cost_center = flt(amount) * percentage / 100
+					accounts.append(
+						self.update_accounting_dimensions(
+							{
+								"account": payroll_payable_account,
+								"debit_in_account_currency": flt(amount_against_cost_center, precision),
+								"exchange_rate": flt(exchange_rate),
+								"reference_type": self.doctype,
+								"reference_name": self.name,
+								"party_type": "Employee",
+								"party": employee,
+								"cost_center": cost_center,
+							},
+							accounting_dimensions,
+						)
+					)
 		else:
 			exchange_rate, amount = self.get_amount_and_exchange_rate_for_journal_entry(
 				payroll_payable_account, je_payment_amount, company_currency, currencies
@@ -1153,6 +1252,7 @@ class PayrollEntry(Document):
 						"exchange_rate": flt(exchange_rate),
 						"reference_type": self.doctype,
 						"reference_name": self.name,
+						"cost_center": self.cost_center,
 					},
 					accounting_dimensions,
 				)

@@ -23,6 +23,19 @@ company_name = "_Test Company 3"
 
 class TestExpenseClaim(HRMSTestSuite):
 	def setUp(self):
+		if not frappe.db.get_value("Cost Center", {"company": company_name}):
+			cost_center = frappe.new_doc("Cost Center")
+			cost_center.update(
+				{
+					"doctype": "Cost Center",
+					"cost_center_name": "_Test Cost Center 3",
+					"parent_cost_center": "_Test Company 3 - _TC3",
+					"is_group": 0,
+					"company": company_name,
+				}
+			).insert()
+
+			frappe.db.set_value("Company", company_name, "default_cost_center", cost_center)
 		frappe.db.set_value("Account", "Employee Advances - _TC", "account_type", "Receivable")
 		frappe.db.set_value("Account", "Payroll Payable - _TC", "account_type", "Payable")
 		frappe.set_user("Administrator")
@@ -79,6 +92,7 @@ class TestExpenseClaim(HRMSTestSuite):
 		line_project = create_project("_Test Project Line 2", company="_Test Company")
 
 		payable_account = get_payable_account(company_name)
+		cost_center = frappe.db.get_value("Company", company_name, "cost_center")
 
 		expense_claim = make_expense_claim(
 			payable_account,
@@ -97,6 +111,7 @@ class TestExpenseClaim(HRMSTestSuite):
 				"currency": expense_claim.currency,
 				"amount": 500,
 				"sanctioned_amount": 500,
+				"cost_center": cost_center,
 				"project": line_project,
 			},
 		)
@@ -166,6 +181,7 @@ class TestExpenseClaim(HRMSTestSuite):
 			entry.reference_type = ""
 			entry.reference_name = ""
 
+			cost_center = entry.cost_center
 			if entry.party:
 				employee1 = entry.party
 
@@ -181,6 +197,7 @@ class TestExpenseClaim(HRMSTestSuite):
 				"reference_type": "Expense Claim",
 				"party_type": "Employee",
 				"party": employee,
+				"cost_center": cost_center,
 			},
 		)
 
@@ -434,7 +451,9 @@ class TestExpenseClaim(HRMSTestSuite):
 		advance = make_employee_advance(employee, {"advance_amount": 500})
 		make_payment_entry(advance)
 
-		currency = frappe.db.get_value("Company", "_Test Company", "default_currency")
+		currency, cost_center = frappe.db.get_value(
+			"Company", "_Test Company", ["default_currency", "cost_center"]
+		)
 		claim = get_expense_claim(advance.name)  # function call to create claim from employee advance form
 		claim.update(
 			{
@@ -450,6 +469,7 @@ class TestExpenseClaim(HRMSTestSuite):
 				"default_account": "Travel Expenses - _TC",
 				"amount": 1000,
 				"sanctioned_amount": 1000,
+				"cost_center": cost_center,
 			},
 		)
 
@@ -692,17 +712,19 @@ class TestExpenseClaim(HRMSTestSuite):
 		expense_claim.expenses[0].project = project
 		expense_claim.submit()
 
-		project_dimension = frappe.db.get_value(
+		dimensions = frappe.db.get_value(
 			"GL Entry",
 			{
 				"voucher_type": "Expense Claim",
 				"voucher_no": expense_claim.name,
 				"account": "Travel Expenses - _TC3",
 			},
-			"project",
+			["cost_center", "project"],
+			as_dict=1,
 		)
 
-		self.assertEqual(project_dimension, project)
+		self.assertEqual(dimensions.project, project)
+		self.assertEqual(dimensions.cost_center, expense_claim.cost_center)
 
 	def test_rounding(self):
 		payable_account = get_payable_account(company_name)
@@ -1205,10 +1227,13 @@ def generate_taxes(company=None, rate=None) -> dict:
 		parent_account=parent_account,
 	)
 
+	cost_center = frappe.db.get_value("Company", company, "cost_center")
+
 	return {
 		"taxes": [
 			{
 				"account_head": account,
+				"cost_center": cost_center,
 				"rate": rate or 9,
 				"description": "CGST",
 			}
@@ -1234,7 +1259,7 @@ def make_expense_claim(
 		if not employee:
 			employee = make_employee("test_employee@expenseclaim.com", company=company)
 
-	currency = frappe.db.get_value("Company", company, "default_currency")
+	currency, cost_center = frappe.db.get_value("Company", company, ["default_currency", "cost_center"])
 	expense_claim = {
 		"doctype": "Expense Claim",
 		"employee": employee,
@@ -1249,6 +1274,7 @@ def make_expense_claim(
 				"currency": currency,
 				"amount": amount,
 				"sanctioned_amount": sanctioned_amount,
+				"cost_center": cost_center,
 			}
 		],
 	}
@@ -1305,6 +1331,7 @@ def make_journal_entry(expense_claim, do_not_submit=False):
 			"reference_type": "Expense Claim",
 			"party_type": "Employee",
 			"party": expense_claim.employee,
+			"cost_center": erpnext.get_default_cost_center(expense_claim.company),
 			"reference_name": expense_claim.name,
 		},
 	)
@@ -1316,6 +1343,7 @@ def make_journal_entry(expense_claim, do_not_submit=False):
 			"credit_in_account_currency": payable_amount,
 			"balance": default_bank_cash_account.balance,
 			"account_currency": default_bank_cash_account.account_currency,
+			"cost_center": erpnext.get_default_cost_center(expense_claim.company),
 			"account_type": default_bank_cash_account.account_type,
 		},
 	)

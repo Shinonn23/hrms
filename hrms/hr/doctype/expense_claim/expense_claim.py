@@ -54,6 +54,7 @@ class ExpenseClaim(AccountsController):
 		base_total_taxes_and_charges: DF.Currency
 		clearance_date: DF.Date | None
 		company: DF.Link
+		cost_center: DF.Link | None
 		currency: DF.Link
 		delivery_trip: DF.Link | None
 		department: DF.Link | None
@@ -267,6 +268,7 @@ class ExpenseClaim(AccountsController):
 						"party": self.employee,
 						"against_voucher_type": self.doctype,
 						"against_voucher": self.name,
+						"cost_center": self.cost_center,
 						"project": self.project,
 						"transaction_exchange_rate": self.exchange_rate,
 					},
@@ -285,6 +287,7 @@ class ExpenseClaim(AccountsController):
 						"debit_in_account_currency": data.sanctioned_amount,
 						"debit_in_transaction_currency": data.sanctioned_amount,
 						"against": self.employee,
+						"cost_center": data.cost_center or self.cost_center,
 						"project": data.project or self.project,
 						"transaction_exchange_rate": self.exchange_rate,
 					},
@@ -311,6 +314,7 @@ class ExpenseClaim(AccountsController):
 							"advance_voucher_type": data.reference_type,
 							"advance_voucher_no": data.reference_name,
 							"transaction_exchange_rate": self.exchange_rate,
+							"cost_center": self.cost_center,
 							"project": self.project,
 						},
 						account_currency=self.currency,
@@ -331,6 +335,7 @@ class ExpenseClaim(AccountsController):
 						"credit_in_transaction_currency": self.grand_total,
 						"against": self.employee,
 						"transaction_exchange_rate": self.exchange_rate,
+						"cost_center": self.cost_center,
 						"project": self.project,
 					},
 					account_currency=self.currency,
@@ -351,6 +356,7 @@ class ExpenseClaim(AccountsController):
 						"against_voucher": self.name,
 						"against_voucher_type": self.doctype,
 						"transaction_exchange_rate": self.exchange_rate,
+						"cost_center": self.cost_center,
 						"project": self.project,
 					},
 					account_currency=self.currency,
@@ -371,6 +377,7 @@ class ExpenseClaim(AccountsController):
 						"debit_in_account_currency": tax.tax_amount,
 						"debit_in_transaction_currency": tax.tax_amount,
 						"against": self.employee,
+						"cost_center": tax.cost_center or self.cost_center,
 						"project": tax.project or self.project,
 						"against_voucher_type": self.doctype,
 						"against_voucher": self.name,
@@ -447,6 +454,7 @@ class ExpenseClaim(AccountsController):
 				ref2_dt=self.doctype,
 				ref2_dn=self.name,
 				ref2_detail_no=1,
+				cost_center=self.cost_center,
 				dimensions={},
 			)
 			frappe.msgprint(
@@ -457,6 +465,14 @@ class ExpenseClaim(AccountsController):
 			)
 
 	def validate_account_details(self):
+		for data in self.expenses:
+			if not data.cost_center:
+				frappe.throw(
+					_("Row {0}: {1} is required in the expenses table to book an expense claim.").format(
+						data.idx, frappe.bold(_("Cost Center"))
+					)
+				)
+
 		for data in self.advances:
 			self.validate_advance_linkage(data)
 
@@ -662,6 +678,14 @@ def get_outstanding_amount_for_claim(claim):
 
 
 @frappe.whitelist()
+def get_expense_claim_account_and_cost_center(expense_claim_type: str, company: str) -> dict:
+	data = get_expense_claim_account(expense_claim_type, company)
+	cost_center = erpnext.get_default_cost_center(company)
+
+	return {"account": data.get("account"), "cost_center": cost_center}
+
+
+@frappe.whitelist()
 def get_expense_claim_account(expense_claim_type: str, company: str) -> dict:
 	account = frappe.db.get_value(
 		"Expense Claim Account", {"parent": expense_claim_type, "company": company}, "default_account"
@@ -793,6 +817,8 @@ def get_expense_claim(employee_advance: str | dict) -> Document:
 		employee_advance = frappe.get_doc("Employee Advance", employee_advance)
 
 	company = employee_advance.company
+	default_cost_center = frappe.get_cached_value("Company", company, "cost_center")
+
 	expense_claim = frappe.new_doc("Expense Claim")
 	expense_claim.company = company
 	expense_claim.currency = employee_advance.currency
@@ -802,6 +828,7 @@ def get_expense_claim(employee_advance: str | dict) -> Document:
 		if employee_advance.currency == erpnext.get_company_currency(company)
 		else None
 	)
+	expense_claim.cost_center = default_cost_center
 	expense_claim.is_paid = 1 if flt(employee_advance.paid_amount) else 0
 	get_expense_claim_advances(expense_claim, employee_advance)
 	return expense_claim

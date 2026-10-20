@@ -42,6 +42,14 @@ frappe.ui.form.on("Salary Structure Assignment", {
 			};
 		});
 
+		frm.set_query("cost_center", "payroll_cost_centers", function () {
+			return {
+				filters: {
+					company: frm.doc.company,
+					is_group: 0,
+				},
+			};
+		});
 	},
 
 	refresh: function (frm) {
@@ -89,7 +97,10 @@ frappe.ui.form.on("Salary Structure Assignment", {
 
 	employee: function (frm) {
 		if (frm.doc.employee) {
+			frm.trigger("set_payroll_cost_centers");
 			frm.trigger("toggle_opening_balances_section");
+		} else {
+			frm.set_value("payroll_cost_centers", []);
 		}
 	},
 
@@ -137,6 +148,18 @@ frappe.ui.form.on("Salary Structure Assignment", {
 				new_window.document.write(r.message);
 			},
 		});
+	},
+
+	set_payroll_cost_centers: function (frm) {
+		if (frm.doc.payroll_cost_centers && frm.doc.payroll_cost_centers.length < 1) {
+			frappe.call({
+				method: "set_payroll_cost_centers",
+				doc: frm.doc,
+				callback: function (data) {
+					refresh_field("payroll_cost_centers");
+				},
+			});
+		}
 	},
 
 	toggle_opening_balances_section: function (frm) {

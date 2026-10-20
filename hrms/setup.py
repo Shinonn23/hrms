@@ -112,9 +112,16 @@ def get_custom_fields():
 				"insert_after": "disabled",
 			},
 			{
+				"fieldname": "payroll_cost_center",
+				"fieldtype": "Link",
+				"label": _("Payroll Cost Center"),
+				"options": "Cost Center",
+				"insert_after": "section_break_4",
+			},
+			{
 				"fieldname": "column_break_9",
 				"fieldtype": "Column Break",
-				"insert_after": "section_break_4",
+				"insert_after": "payroll_cost_center",
 			},
 			{
 				"description": _("Days for which Holidays are blocked for this department."),
@@ -223,6 +230,15 @@ def get_custom_fields():
 				"fieldname": "salary_cb",
 				"fieldtype": "Column Break",
 				"insert_after": "employee_advance_account",
+			},
+			{
+				"fetch_from": "department.payroll_cost_center",
+				"fetch_if_empty": 1,
+				"fieldname": "payroll_cost_center",
+				"fieldtype": "Link",
+				"label": _("Payroll Cost Center"),
+				"options": "Cost Center",
+				"insert_after": "salary_cb",
 			},
 		],
 		"Project": [
@@ -474,6 +490,7 @@ def get_post_install_patches():
 		"erpnext.patches.v13_0.set_company_in_leave_ledger_entry",
 		"erpnext.patches.v13_0.rename_stop_to_send_birthday_reminders",
 		"erpnext.patches.v13_0.set_training_event_attendance",
+		"erpnext.patches.v14_0.set_payroll_cost_centers",
 		"erpnext.patches.v13_0.update_employee_advance_status",
 		"erpnext.patches.v13_0.update_expense_claim_status_for_paid_advances",
 		"erpnext.patches.v14_0.delete_employee_transfer_property_doctype",

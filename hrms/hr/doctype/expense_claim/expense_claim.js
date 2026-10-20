@@ -128,6 +128,7 @@ frappe.ui.form.on("Expense Claim", {
 
 	validate: function (frm) {
 		frm.trigger("calculate_total");
+		frm.events.set_child_cost_center(frm);
 	},
 
 	currency: function (frm) {
@@ -406,7 +407,7 @@ frappe.ui.form.on("Expense Claim", {
 				continue;
 			}
 			frappe.call({
-				method: "hrms.hr.doctype.expense_claim.expense_claim.get_expense_claim_account",
+				method: "hrms.hr.doctype.expense_claim.expense_claim.get_expense_claim_account_and_cost_center",
 				args: {
 					expense_claim_type: expense.expense_type,
 					company: frm.doc.company,
@@ -414,6 +415,7 @@ frappe.ui.form.on("Expense Claim", {
 				callback: function (r) {
 					if (r.message) {
 						expense.default_account = r.message.account;
+						expense.cost_center = r.message.cost_center;
 					}
 				},
 			});
@@ -456,6 +458,10 @@ frappe.ui.form.on("Expense Claim", {
 		frm.events.get_advances(frm);
 	},
 
+	cost_center: function (frm) {
+		frm.events.set_child_cost_center(frm);
+	},
+
 	mode_of_payment: async function (frm) {
 		if (frm.doc.mode_of_payment) {
 			var mode_of_payment_type = (
@@ -472,6 +478,14 @@ frappe.ui.form.on("Expense Claim", {
 				};
 			});
 		}
+	},
+
+	set_child_cost_center: function (frm) {
+		(frm.doc.expenses || []).forEach(function (d) {
+			if (!d.cost_center) {
+				d.cost_center = frm.doc.cost_center;
+			}
+		});
 	},
 
 	get_taxes: function (frm) {
@@ -546,7 +560,7 @@ frappe.ui.form.on("Expense Claim Detail", {
 		}
 
 		return frappe.call({
-			method: "hrms.hr.doctype.expense_claim.expense_claim.get_expense_claim_account",
+			method: "hrms.hr.doctype.expense_claim.expense_claim.get_expense_claim_account_and_cost_center",
 			args: {
 				expense_claim_type: d.expense_type,
 				company: frm.doc.company,
@@ -554,6 +568,7 @@ frappe.ui.form.on("Expense Claim Detail", {
 			callback: function (r) {
 				if (r.message) {
 					d.default_account = r.message.account;
+					d.cost_center = r.message.cost_center;
 				}
 			},
 		});
@@ -570,6 +585,10 @@ frappe.ui.form.on("Expense Claim Detail", {
 		frm.trigger("get_taxes");
 		frm.trigger("calculate_grand_total");
 		set_in_company_currency(frm, locals[cdt][cdn], ["sanctioned_amount"]);
+	},
+
+	cost_center: function (frm, cdt, cdn) {
+		erpnext.utils.copy_value_in_all_rows(frm.doc, cdt, cdn, "expenses", "cost_center");
 	},
 });
 

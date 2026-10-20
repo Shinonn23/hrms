@@ -300,7 +300,9 @@ class TestEmployeeAdvance(HRMSTestSuite):
 
 		self.assertEqual(advance.status, "Partially Paid")
 
-		currency = frappe.db.get_value("Company", "_Test Company", "default_currency")
+		currency, cost_center = frappe.db.get_value(
+			"Company", "_Test Company", ["default_currency", "cost_center"]
+		)
 		claim = get_expense_claim(advance.name)  # create claim from employee advance form
 		claim.update(
 			{
@@ -316,6 +318,7 @@ class TestEmployeeAdvance(HRMSTestSuite):
 				"default_account": "Travel Expenses - _TC",
 				"amount": 1000,
 				"sanctioned_amount": 1000,
+				"cost_center": cost_center,
 			},
 		)
 		claim.save()
@@ -521,6 +524,7 @@ def manual_journal_entry_for_advance(advance) -> dict:
 			"reference_type": "Employee Advance",
 			"reference_name": doc.name,
 			"party_type": "Employee",
+			"cost_center": erpnext.get_default_cost_center(doc.company),
 			"party": doc.employee,
 			"is_advance": "Yes",
 		},
@@ -530,6 +534,7 @@ def manual_journal_entry_for_advance(advance) -> dict:
 		"accounts",
 		{
 			"account": payment_account.account or payment_account.name,
+			"cost_center": erpnext.get_default_cost_center(doc.company),
 			"credit_in_account_currency": flt(doc.advance_amount),
 			"account_currency": doc.currency,
 			"account_type": payment_account.account_type,
@@ -633,6 +638,7 @@ def create_payroll_for_advance_return(
 		payable_account=company.default_payroll_payable_account,
 		currency=company.default_currency,
 		company=company.name,
+		cost_center="Main - _TC",
 	)
 	return _dict(
 		{

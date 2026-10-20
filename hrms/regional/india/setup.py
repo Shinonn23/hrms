@@ -58,7 +58,7 @@ def get_custom_fields():
 				"fieldname": "pan_number",
 				"label": "PAN Number",
 				"fieldtype": "Data",
-				"insert_after": "salary_cb",
+				"insert_after": "payroll_cost_center",
 				"print_hide": 1,
 				"translatable": 0,
 			},

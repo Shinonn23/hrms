@@ -18,6 +18,7 @@
   "sanctioned_amount",
   "base_sanctioned_amount",
   "accounting_dimensions_section",
+  "cost_center",
   "dimension_col_break",
   "project"
  ],
@@ -97,6 +98,13 @@
    "options": "currency",
    "print_width": "150px",
    "width": "150px"
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "cost_center",
+   "fieldtype": "Link",
+   "label": "Cost Center",
+   "options": "Cost Center"
   },
   {
    "fieldname": "accounting_dimensions_section",
