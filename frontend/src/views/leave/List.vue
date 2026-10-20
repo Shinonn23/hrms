@@ -25,6 +25,7 @@ const LEAVE_FIELDS = [
 	"from_date",
 	"to_date",
 	"total_leave_days",
+	"docstatus",
 ]
 const FILTER_CONFIG = [
 	{
