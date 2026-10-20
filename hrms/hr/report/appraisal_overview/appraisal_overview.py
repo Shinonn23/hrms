@@ -3,6 +3,7 @@
 
 import frappe
 from frappe import _
+from frappe.query_builder.functions import Count
 
 
 def execute(filters: dict | None = None) -> tuple:
@@ -80,11 +81,21 @@ def get_data(filters: dict | None = None) -> list[dict]:
 		order_by="appraisal_cycle asc, final_score desc",
 		limit_page_length=0,
 	)
+	if not appraisals:
+		return appraisals
+
+	Feedback = frappe.qb.DocType("Employee Performance Feedback")
+	feedback_counts = dict(
+		frappe.qb.from_(Feedback)
+		.select(Feedback.appraisal, Count(Feedback.name))
+		.where(Feedback.docstatus == 1)
+		.where(Feedback.appraisal.isin([row.appraisal for row in appraisals]))
+		.groupby(Feedback.appraisal)
+		.run()
+	)
 
 	for row in appraisals:
-		row["feedback_count"] = frappe.db.count(
-			"Employee Performance Feedback", {"appraisal": row.appraisal, "docstatus": 1}
-		)
+		row["feedback_count"] = feedback_counts.get(row.appraisal, 0)
 
 	return appraisals
 
