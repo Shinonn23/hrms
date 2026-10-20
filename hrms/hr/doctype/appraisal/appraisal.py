@@ -16,6 +16,7 @@ from hrms.payroll.utils import sanitize_expression
 class Appraisal(Document, AppraisalMixin):
 	def validate(self):
 		self.set_kra_evaluation_method()
+		self.set_cycle_dates()
 
 		validate_active_employee(self.employee)
 		validate_active_appraisal_cycle(self.appraisal_cycle)
@@ -62,6 +63,14 @@ class Appraisal(Document, AppraisalMixin):
 				title=_("Duplicate Entry"),
 			)
 
+	def set_cycle_dates(self):
+		# Start / End Date are read-only copies of the cycle's period, and nothing else fills them for an appraisal made
+		# on the form: the overlap check below and salary reviews that read the appraisal's end date saw empty dates
+		if self.appraisal_cycle:
+			self.start_date, self.end_date = frappe.db.get_value(
+				"Appraisal Cycle", self.appraisal_cycle, ["start_date", "end_date"]
+			) or (None, None)
+
 	def set_kra_evaluation_method(self):
 		if (
 			self.is_new()
@@ -97,6 +106,10 @@ class Appraisal(Document, AppraisalMixin):
 		if not self.appraisal_template:
 			return
 
+		# the cycle decides the table, as on save: the form's flag can be stale (appraisal.js reads the cycle's method
+		# in a callback that set_appraisal_template's reply overwrites), and KRAs put in KRA vs Goals left the Goals
+		# table of a Manual Rating cycle empty after Save
+		self.set_kra_evaluation_method()
 		self.set("appraisal_kra", [])
 		self.set("self_ratings", [])
 		self.set("goals", [])

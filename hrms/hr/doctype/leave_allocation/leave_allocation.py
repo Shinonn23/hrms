@@ -201,14 +201,14 @@ class LeaveAllocation(Document):
 		).run()
 
 		if leave_allocation:
-			frappe.msgprint(
+			# one message: the desk shows only the exception when a request also has plain messages, so a separate
+			# msgprint left the user with "Reference: <link>" and no reason
+			frappe.throw(
 				_("{0} already allocated for Employee {1} for period {2} to {3}").format(
 					self.leave_type, self.employee, formatdate(self.from_date), formatdate(self.to_date)
 				)
-			)
-
-			frappe.throw(
-				_("Reference")
+				+ "<br>"
+				+ _("Reference")
 				+ f': <a href="/app/Form/Leave Allocation/{leave_allocation[0][0]}">{leave_allocation[0][0]}</a>',
 				OverlapError,
 			)

@@ -34,7 +34,9 @@ frappe.ui.form.on("Shift Type", {
 					is_manually_triggered: true,
 				},
 				callback: (r) => {
-					frappe.msgprint(__(r.message));
+					// after request.js has shown the reply's own messages: it hides and empties the message dialog
+					// for them, which left this message blank whenever attendance was marked (its alerts)
+					setTimeout(() => frappe.msgprint(__(r.message)));
 				},
 			});
 		});
