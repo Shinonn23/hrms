@@ -81,7 +81,7 @@ const props = defineProps({
 const tabs = [
 	{ name: "Expenses", lastField: "taxes" },
 	{ name: "Advances", lastField: "advances" },
-	{ name: "Totals", lastField: "project" },
+	{ name: "Totals", lastField: "cost_center" },
 ]
 
 // object to store form data
@@ -192,15 +192,10 @@ const employeeCurrency = createResource({
 });
 
 const companyDetails = createResource({
-	url: "frappe.client.get_value",
-	makeParams() {
-		return {
-			doctype: "Company",
-			fieldname: ["default_expense_claim_payable_account", "default_payroll_payable_account"],
-			filters: { name: expenseClaim.value.company },
-		}
-	},
+	url: "hrms.api.get_company_cost_center_and_expense_account",
+	params: { company: expenseClaim.value.company },
 	onSuccess(data) {
+		expenseClaim.value.cost_center = data?.cost_center
 		expenseClaim.value.payable_account =
 			data?.default_expense_claim_payable_account ||
 			data?.default_payroll_payable_account
@@ -256,6 +251,15 @@ watch(
 	{ deep: true }
 )
 
+watch(
+	() => expenseClaim.value.cost_center,
+	() => {
+		expenseClaim?.value?.expenses?.forEach((expense) => {
+			expense.cost_center = expenseClaim.value.cost_center
+		})
+	}
+)
+
 // helper functions
 function getFilteredFields(fields) {
 	// reduce noise from the form view by excluding unnecessary fields
@@ -297,6 +301,11 @@ function applyFilters(field) {
 			company: expenseClaim.value.company,
 			is_group: 0,
 			account_currency: expenseClaim.value.currency,
+		}
+	} else if (field.fieldname === "cost_center") {
+		field.linkFilters = {
+			company: expenseClaim.value.company,
+			is_group: 0,
 		}
 	} else if (field.fieldname === "project") {
 		field.linkFilters = {
@@ -438,6 +447,9 @@ function validateForm() {
 	expenseClaim.value.advances = expenseClaim?.value?.advances?.filter(
 		(advance) => advance.selected
 	)
+	expenseClaim?.value?.expenses?.forEach((expense) => {
+		expense.cost_center = expenseClaim.value.cost_center
+	})
 }
 
 function setExchangeRate() {

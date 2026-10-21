@@ -1,7 +1,7 @@
 # Copyright (c) 2026, Frappe Technologies Pvt. Ltd. and contributors
 # For license information, please see license.txt
 
-"""Payroll books the cost of each Department on its own Journal Entry row."""
+"""Payroll books the cost of each Department on its own Journal Entry row (within each cost center)."""
 
 import unittest
 from types import SimpleNamespace
@@ -33,6 +33,7 @@ class TestPayrollEntryDepartment(unittest.TestCase):
 	def entry(self, slip_rows):
 		entry = Entry(
 			project=None,
+			cost_center="Main",
 			exchange_rate=1,
 			company="Company",
 			start_date="2026-10-01",
@@ -43,6 +44,7 @@ class TestPayrollEntryDepartment(unittest.TestCase):
 			_advance_deduction_entries=[],
 			get_salary_components=lambda component_type: [frappe._dict(row) for row in slip_rows],
 			get_advance_deductions=lambda component_type, rows: {},
+			get_payroll_cost_centers_for_employee=lambda employee, salary_structure: {"Main": 100},
 			get_salary_component_account=lambda component: {"Basic": "Salary", "Bonus": "Salary", "Tax": "Tax Payable"}[
 				component
 			],
@@ -67,15 +69,18 @@ class TestPayrollEntryDepartment(unittest.TestCase):
 			]
 		)
 		totals = entry.get_salary_component_total("earnings")
-		self.assertEqual(totals, {("Salary", "Lab"): 120, ("Salary", "Sales"): 70, ("Salary", None): 50})
+		self.assertEqual(
+			totals,
+			{("Salary", "Main", "Lab"): 120, ("Salary", "Main", "Sales"): 70, ("Salary", "Main", None): 50},
+		)
 
 	def test_expense_rows_carry_their_department(self):
 		entry = self.entry([])
 		accounts, currencies = [], []
 		entry.get_payable_amount_for_earnings_and_deductions(
 			accounts,
-			{("Salary", "Lab"): 120, ("Salary", None): 50},
-			{("Tax Payable", "Lab"): 12},
+			{("Salary", "Main", "Lab"): 120, ("Salary", "Main", None): 50},
+			{("Tax Payable", "Main", "Lab"): 12},
 			currencies,
 			"THB",
 			[],
@@ -118,6 +123,7 @@ class TestPayrollEntryDepartment(unittest.TestCase):
 		accounts = []
 		entry.get_accounting_entries_and_payable_amount(
 			"Salary",
+			"Main",
 			100,
 			[],
 			"THB",

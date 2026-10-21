@@ -2066,6 +2066,7 @@ class TestSalarySlip(HRMSTestSuite):
 			currency="INR",
 			company="_Test Company",
 			department=emp2_department,
+			cost_center="Main - _TC",
 		)
 
 		emp2_slip_name = frappe.db.get_value(

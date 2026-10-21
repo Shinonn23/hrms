@@ -120,6 +120,7 @@ class TestSalaryWithholding(HRMSTestSuite):
 			payable_account=self.company.default_payroll_payable_account,
 			currency=self.company.default_currency,
 			company=self.company.name,
+			cost_center="Main - _TC",
 		)
 
 	def _submit_bank_entry(self, bank_entry: dict):

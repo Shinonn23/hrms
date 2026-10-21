@@ -233,6 +233,8 @@ watch(
 		if (!expenseItem.value.description) {
 			expenseItem.value.description = claimTypesByID[value]?.description
 		}
+
+		expenseItem.value.cost_center = props.expenseClaim.cost_center
 	}
 )
 

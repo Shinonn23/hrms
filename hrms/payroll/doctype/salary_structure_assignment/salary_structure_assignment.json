@@ -36,7 +36,9 @@
   "tax_deducted_till_date",
   "employee_benefits_section",
   "max_benefits",
-  "employee_benefits"
+  "employee_benefits",
+  "section_break_17",
+  "payroll_cost_centers"
  ],
  "fields": [
   {
@@ -176,6 +178,20 @@
    "fieldtype": "Link",
    "label": "Payroll Payable Account",
    "options": "Account"
+  },
+  {
+   "collapsible": 1,
+   "depends_on": "employee",
+   "fieldname": "section_break_17",
+   "fieldtype": "Section Break",
+   "label": "Payroll Cost Centers"
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "payroll_cost_centers",
+   "fieldtype": "Table",
+   "label": "Cost Centers",
+   "options": "Employee Cost Center"
   },
   {
    "fetch_from": "employee.grade",
