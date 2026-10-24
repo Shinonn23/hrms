@@ -19,9 +19,9 @@ STATUTORY_TYPES = (REGULAR_WAGE, INCOME_TAX, SSO_EMPLOYEE, SSO_EMPLOYER, PVD_EMP
 PAYROLL_PERMLEVEL = 1
 PAYROLL_ROLES = ("HR Manager", "Payroll Manager")
 
-# Employee numbers: the Buddhist-era year, the month and a running number of the month, as in 6810001 (YY-BE 68,
-# month 10, number 001). YY-BE and YYYY-BE are naming series parts of hrms.regional.thailand.naming.
-EMPLOYEE_SERIES = "YY-BE.MM.###"
+# Employee numbers: the Buddhist-era year and the month of the Date of Joining and a running number of that month, as
+# in 6810001 (YY-BE 68, month 10, number 001). The parts are those of hrms.regional.thailand.naming.
+EMPLOYEE_SERIES = "YY-BE.MM-BE.###"
 
 # Thai salutations, next to the English ones of ERPNext (Mr, Mrs, Ms...).
 THAI_SALUTATIONS = ("นาย", "นาง", "นางสาว")
@@ -82,32 +82,40 @@ HRMS_THAILAND_CUSTOM_FIELDS = {
 			"label": "Sign",
 			"insert_after": "signature",
 		},
+		# Personal Details tab, under the passport: the identity card.
 		{
-			"fieldname": "thai_identity_section",
+			"fieldname": "national_id_section",
 			"fieldtype": "Section Break",
-			"label": "National ID & Social Security (Thailand)",
+			"label": "National ID (Thailand)",
 			"insert_after": "place_of_issue",
 		},
 		{
 			"fieldname": "national_id_number",
 			"fieldtype": "Data",
 			"label": "National ID Number",
-			"insert_after": "thai_identity_section",
+			"insert_after": "national_id_section",
 			"permlevel": PAYROLL_PERMLEVEL,
 			"no_copy": 1,
 			"description": "Opens the password-protected Salary Slip PDF. Only HR and Payroll can read it.",
+		},
+		# Salary tab, under the bank details: what the SSO 1-10 form and the salary structure need.
+		{
+			"fieldname": "social_security_section",
+			"fieldtype": "Section Break",
+			"label": "Social Security (Thailand)",
+			"insert_after": "iban",
 		},
 		{
 			"fieldname": "social_security_id",
 			"fieldtype": "Data",
 			"label": "Social Security ID",
-			"insert_after": "national_id_number",
+			"insert_after": "social_security_section",
 			"permlevel": PAYROLL_PERMLEVEL,
 			"no_copy": 1,
 			"description": "The ID on the SSO 1-10 form. Leave blank when it is the National ID Number.",
 		},
 		{
-			"fieldname": "thai_identity_column",
+			"fieldname": "social_security_column",
 			"fieldtype": "Column Break",
 			"insert_after": "social_security_id",
 		},
@@ -115,7 +123,7 @@ HRMS_THAILAND_CUSTOM_FIELDS = {
 			"fieldname": "social_security_eligible",
 			"fieldtype": "Check",
 			"label": "Social Security Eligible",
-			"insert_after": "thai_identity_column",
+			"insert_after": "social_security_column",
 			"description": "Ticked: the salary structure takes the employee's and the employer's social security.",
 		},
 	],

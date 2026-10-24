@@ -107,11 +107,12 @@ after_migrate = [
 	"hrms.regional.thailand.setup.after_migrate",
 ]
 
-# Naming series parts of the Thai calendar (hrms/regional/thailand/naming.py): the series YY-BE.MM.### makes 6910001
-# in October 2569 (69 = the Buddhist-era year, 10 = the month, 001 = the first employee of the month).
+# Naming series parts of the Thai calendar (hrms/regional/thailand/naming.py): the series YY-BE.MM-BE.### makes 6810001
+# for an employee who joined in October 2568 (68 = the Buddhist-era year, 10 = the month, 001 = the first of the month).
 naming_series_variables = {
 	"YY-BE": "hrms.regional.thailand.naming.year_be_short",
 	"YYYY-BE": "hrms.regional.thailand.naming.year_be",
+	"MM-BE": "hrms.regional.thailand.naming.month_be",
 }
 
 setup_wizard_requires = "assets/hrms/js/setup_wizard.js"

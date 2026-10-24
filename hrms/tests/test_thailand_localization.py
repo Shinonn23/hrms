@@ -144,7 +144,7 @@ class TestMoveProvidentFundRate(TestCase):
 
 
 class TestEmployeeNumber(TestCase):
-	def parse(self, series, now=datetime(2026, 10, 24)):
+	def parse(self, series, doc=None, now=datetime(2026, 10, 24)):
 		# Frappe asks the hook for a part it does not know: answer it with the functions the hook names
 		parsers = {
 			part: [getattr(thai_naming, path.rsplit(".", 1)[1])]
@@ -156,17 +156,23 @@ class TestEmployeeNumber(TestCase):
 			patch.object(naming, "has_custom_parser", side_effect=parsers.get),
 			patch.object(naming.frappe, "get_attr", side_effect=lambda method: method),
 		):
-			return naming.parse_naming_series(series, number_generator=lambda key, digits: "001")
+			return naming.parse_naming_series(series, doc=doc, number_generator=lambda key, digits: "001")
 
-	def test_the_buddhist_era_year_parts(self):
+	def test_the_buddhist_era_parts_are_of_today_without_a_date_of_joining(self):
 		self.assertEqual(self.parse("YY-BE"), "69")
 		self.assertEqual(self.parse("YYYY-BE"), "2569")
+		self.assertEqual(self.parse("MM-BE"), "10")
 		self.assertEqual(thai_naming.buddhist_year(datetime(2025, 10, 1)), 2568)
 
-	def test_the_employee_series_makes_the_number_hr_uses(self):
-		self.assertEqual(constants.EMPLOYEE_SERIES, "YY-BE.MM.###")
+	def test_the_employee_number_follows_the_date_of_joining(self):
+		self.assertEqual(constants.EMPLOYEE_SERIES, "YY-BE.MM-BE.###")
+		joined = frappe._dict(date_of_joining="2025-10-01")
+		# today is October 2026, the employee joined in October 2025: 68, 10
+		self.assertEqual(self.parse(constants.EMPLOYEE_SERIES, joined), "6810001")
+		self.assertEqual(
+			self.parse(constants.EMPLOYEE_SERIES, frappe._dict(date_of_joining="2026-01-15")), "6901001"
+		)
 		self.assertEqual(self.parse(constants.EMPLOYEE_SERIES), "6910001")
-		self.assertEqual(self.parse(constants.EMPLOYEE_SERIES, datetime(2025, 10, 1)), "6810001")
 
 	def test_the_series_is_the_only_option_of_the_employee_series_field(self):
 		setters = {(d, f, p): v for d, f, p, v, _ in constants.PROPERTY_SETTERS}
