@@ -181,15 +181,35 @@ class TestEmployeeNumber(TestCase):
 	def test_every_employee_still_on_the_old_series_gets_the_new_one(self):
 		db = Mock()
 		db.table_exists.return_value = True
+		db.get_value.return_value = None
+		frappe_mock = Mock(db=db, get_all=Mock(return_value=["6810001", "6810007", "6910002", "C6707001"]))
 		with (
-			patch.object(use_series, "frappe", Mock(db=db)),
+			patch.object(use_series, "frappe", frappe_mock),
 			patch.object(use_series, "make_property_setters") as setters,
 		):
 			use_series.execute()
 		setters.assert_called_once()
-		sql = db.sql.call_args
-		self.assertIn("update `tabEmployee` set naming_series", sql.args[0])
-		self.assertEqual(sql.args[1][0], constants.EMPLOYEE_SERIES)
+		calls = [(c.args[0], c.args[1]) for c in db.sql.call_args_list]
+		self.assertIn("update `tabEmployee` set naming_series", calls[0][0])
+		self.assertEqual(calls[0][1][0], constants.EMPLOYEE_SERIES)
+
+	def test_the_counter_of_each_month_is_set_to_the_highest_number_that_exists(self):
+		names = ["6810001", "6810007", "6910002", "C6707001", "CD-EMP-0059", "DUMMY-01"]
+		self.assertEqual(use_series.highest_numbers(names), {"6810": 7, "6910": 2})
+
+	def test_a_counter_is_raised_and_never_lowered(self):
+		db = Mock()
+		with patch.object(use_series, "frappe", Mock(db=db)):
+			db.get_value.return_value = 3
+			use_series.raise_counter("6810", 7)
+			self.assertIn("update `tabSeries`", db.sql.call_args.args[0])
+			db.sql.reset_mock()
+			db.get_value.return_value = 9
+			use_series.raise_counter("6810", 7)
+			db.sql.assert_not_called()
+			db.get_value.return_value = None
+			use_series.raise_counter("6910", 2)
+			self.assertIn("insert into `tabSeries`", db.sql.call_args.args[0])
 
 
 class TestEmployeeNameLayout(TestCase):
