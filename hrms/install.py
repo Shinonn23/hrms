@@ -1,5 +1,6 @@
 import click
 
+from hrms.regional.thailand.setup import after_install as setup_thailand
 from hrms.setup import after_install as setup
 
 
@@ -7,6 +8,7 @@ def after_install():
 	try:
 		print("Setting up Frappe HR...")
 		setup()
+		setup_thailand()
 
 		click.secho("Thank you for installing Frappe HR!", fg="green")
 

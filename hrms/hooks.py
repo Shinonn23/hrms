@@ -51,7 +51,7 @@ app_include_icons = ["/assets/hrms/icons/module-icons.svg"]
 
 # include js in doctype views
 doctype_js = {
-	"Employee": "public/js/erpnext/employee.js",
+	"Employee": ["public/js/erpnext/employee.js", "public/js/thailand/employee.js"],
 	"Company": "public/js/erpnext/company.js",
 	"Department": "public/js/erpnext/department.js",
 	"Timesheet": "public/js/erpnext/timesheet.js",
@@ -102,7 +102,17 @@ jinja = {
 
 # before_install = "hrms.install.before_install"
 after_install = "hrms.install.after_install"
-after_migrate = "hrms.setup.update_select_perm_after_install"
+after_migrate = [
+	"hrms.setup.update_select_perm_after_install",
+	"hrms.regional.thailand.setup.after_migrate",
+]
+
+# Naming series parts of the Thai calendar (hrms/regional/thailand/naming.py): the series YY-BE.MM.### makes 6910001
+# in October 2569 (69 = the Buddhist-era year, 10 = the month, 001 = the first employee of the month).
+naming_series_variables = {
+	"YY-BE": "hrms.regional.thailand.naming.year_be_short",
+	"YYYY-BE": "hrms.regional.thailand.naming.year_be",
+}
 
 setup_wizard_requires = "assets/hrms/js/setup_wizard.js"
 setup_wizard_stages = "hrms.setup_wizard.get_setup_stages"

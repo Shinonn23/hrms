@@ -55,3 +55,5 @@ hrms.patches.v16_0.remove_default_expense_claim_types
 hrms.patches.v16_0.set_job_offer_in_employee
 hrms.patches.v16_0.delete_old_salary_slip_print_formats
 hrms.patches.v16_0.restore_payroll_cost_center_fields
+hrms.patches.v16_0.move_thailand_provident_fund_rate_to_assignment
+hrms.patches.v16_0.use_thailand_employee_series

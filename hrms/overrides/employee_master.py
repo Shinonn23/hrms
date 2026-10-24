@@ -27,6 +27,12 @@ class EmployeeMaster(Employee):
 
 		self.employee = self.name
 
+	def set_employee_name(self):
+		super().set_employee_name()
+		self.full_name_en = " ".join(
+			filter(None, [self.get("first_name_en"), self.get("middle_name_en"), self.get("last_name_en")])
+		)
+
 
 def validate_onboarding_process(doc, method=None):
 	"""Validates Employee Creation for linked Employee Onboarding"""
