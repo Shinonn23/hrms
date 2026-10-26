@@ -115,6 +115,10 @@ naming_series_variables = {
 	"MM-BE": "hrms.regional.thailand.naming.month_be",
 }
 
+# Other apps declare doctype -> the date field the YY-BE/YYYY-BE/MM-BE parts read (default: Employee date_of_joining,
+# else the first filled of posting_date, transaction_date, date, else today); the last app wins.
+naming_series_date_fields = {"Employee": "date_of_joining"}
+
 setup_wizard_requires = "assets/hrms/js/setup_wizard.js"
 setup_wizard_stages = "hrms.setup_wizard.get_setup_stages"
 setup_wizard_complete = "hrms.subscription_utils.update_erpnext_access"
