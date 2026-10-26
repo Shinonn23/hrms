@@ -83,11 +83,27 @@ frappe.ui.form.on("Payroll Entry", {
 				is_active: 1,
 			}).length
 		) {
-			frm.add_custom_button(__("Calculate Salary Slips"), () => {
-				if (frm.is_dirty())
-					frappe.throw(__("Please save the document before calculating Salary Slips."));
-				return frm.call("create_salary_slips").then(() => frm.reload_doc());
-			}, undefined, "Salary Slip");
+			const recalculate = cint(frm.doc.salary_slips_created) ? 1 : 0;
+			const calculate_slips = () =>
+				frm.call("create_salary_slips", { recalculate }).then(() => frm.reload_doc());
+			frm.add_custom_button(
+				recalculate ? __("Recalculate Salary Slips") : __("Calculate Salary Slips"),
+				() => {
+					if (frm.is_dirty())
+						frappe.throw(
+							__("Please save the document before calculating Salary Slips."),
+						);
+					if (!recalculate) return calculate_slips();
+					frappe.confirm(
+						__(
+							"The draft Salary Slips of this round will be deleted and created again. Any manual edits to them will be lost. Submitted and cancelled Salary Slips are not touched. Continue?",
+						),
+						calculate_slips,
+					);
+				},
+				undefined,
+				"Salary Slip",
+			);
 		}
 
 		if (

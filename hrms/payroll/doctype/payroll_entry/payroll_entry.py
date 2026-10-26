@@ -12,6 +12,7 @@ from frappe import _
 from frappe.core.doctype.submission_queue.submission_queue import queue_submission
 from frappe.desk.reportview import get_match_cond
 from frappe.model.document import Document
+from frappe.model.workflow import get_workflow_name
 from frappe.query_builder.functions import Coalesce, Count
 from frappe.utils import (
 	DATE_FORMAT,
@@ -106,7 +107,11 @@ class PayrollEntry(Document):
 				& (SalarySlip.start_date == self.start_date)
 				& (SalarySlip.end_date == self.end_date)
 				& (SalarySlip.docstatus != 2)
-				& ((SalarySlip.docstatus != 0) | (SalarySlip.payroll_entry != self.name) | SalarySlip.payroll_entry.isnull())
+				& (
+					(SalarySlip.docstatus != 0)
+					| (SalarySlip.payroll_entry != self.name)
+					| SalarySlip.payroll_entry.isnull()
+				)
 			)
 		).run(as_dict=True)
 
@@ -274,11 +279,15 @@ class PayrollEntry(Document):
 				employee.is_salary_withheld = 1
 
 	@frappe.whitelist(methods=["POST"])
-	def create_salary_slips(self) -> None:
+	def create_salary_slips(self, recalculate: bool = False) -> None:
 		"""
-		Creates salary slip for selected employees if already not created
+		Creates salary slip for selected employees if already not created.
+		With recalculate, the draft slips of this entry are deleted first and created again.
 		"""
 		self.check_permission("write")
+		recalculate = bool(cint(recalculate))
+		if recalculate:
+			self.validate_recalculation_allowed()
 		employees = [emp.employee for emp in self.employees]
 
 		if employees:
@@ -304,6 +313,7 @@ class PayrollEntry(Document):
 					employees=employees,
 					args=args,
 					publish_progress=False,
+					recalculate=recalculate,
 				)
 				frappe.msgprint(
 					_("Salary Slip creation is queued. It may take a few minutes"),
@@ -311,9 +321,35 @@ class PayrollEntry(Document):
 					indicator="blue",
 				)
 			else:
-				create_salary_slips_for_employees(employees, args, publish_progress=False)
+				create_salary_slips_for_employees(
+					employees, args, publish_progress=False, recalculate=recalculate
+				)
 				# since this method is called via frm.call this doc needs to be updated manually
 				self.reload()
+
+	def validate_recalculation_allowed(self):
+		"""Draft slips may only be recalculated while the entry itself is still editable by the user.
+
+		Other apps can add rules with the payroll_entry_recalculation_guards hook: dotted paths of
+		functions that receive the Payroll Entry and throw to refuse.
+		"""
+		if self.docstatus != 0:
+			frappe.throw(_("Salary Slips can only be recalculated while the Payroll Entry is a draft."))
+
+		workflow = get_workflow_name(self.doctype)
+		if workflow and self.get("workflow_state"):
+			allow_edit = frappe.db.get_value(
+				"Workflow Document State", {"parent": workflow, "state": self.workflow_state}, "allow_edit"
+			)
+			if allow_edit and frappe.session.user != "Administrator" and allow_edit not in frappe.get_roles():
+				frappe.throw(
+					_("Salary Slips cannot be recalculated in the workflow state {0}.").format(
+						frappe.bold(self.workflow_state)
+					)
+				)
+
+		for guard in frappe.get_hooks("payroll_entry_recalculation_guards"):
+			frappe.get_attr(guard)(self)
 
 	def get_sal_slip_list(self, ss_status, as_dict=False):
 		"""
@@ -443,7 +479,10 @@ class PayrollEntry(Document):
 
 					if employee_wise_accounting_enabled:
 						self.set_employee_based_payroll_payable_entries(
-							component_type, item.employee, amount_against_cost_center
+							component_type,
+							item.employee,
+							amount_against_cost_center,
+							department=item.department,
 						)
 
 			account_details = self.get_account(component_dict=component_dict)
@@ -486,6 +525,7 @@ class PayrollEntry(Document):
 				"account": employee_advance.advance_account,
 				"amount": amount,
 				"cost_center": cost_center,
+				"department": item.get("department"),
 				"reference_type": "Employee Advance",
 				"reference_name": employee_advance.employee_advance,
 			}
@@ -499,6 +539,7 @@ class PayrollEntry(Document):
 		accounting_dimensions: list,
 		precision: int,
 		payable_amount: float,
+		payable_by_department: dict | None = None,
 	):
 		for entry in self._advance_deduction_entries:
 			payable_amount = self.get_accounting_entries_and_payable_amount(
@@ -516,14 +557,20 @@ class PayrollEntry(Document):
 				reference_type="Employee Advance",
 				reference_name=entry.get("reference_name"),
 				is_advance="Yes",
+				department=entry.get("department"),
+				payable_by_department=payable_by_department,
 			)
 
 		return payable_amount
 
 	def set_employee_based_payroll_payable_entries(
-		self, component_type, employee, amount, salary_structure=None
+		self, component_type, employee, amount, salary_structure=None, department=None
 	):
 		employee_details = self.employee_based_payroll_payable_entries.setdefault(employee, {})
+
+		# the payable row of the employee carries the department of the employee's slips
+		if department and not employee_details.get("department"):
+			employee_details["department"] = department
 
 		employee_details.setdefault(component_type, 0)
 		employee_details[component_type] += amount
@@ -596,6 +643,8 @@ class PayrollEntry(Document):
 		)
 		self.employee_based_payroll_payable_entries = {}
 		self._advance_deduction_entries = []
+		# payable (debits less credits) booked so far, per department of the slips
+		payable_by_department = {}
 
 		earnings = (
 			self.get_salary_component_total(
@@ -635,6 +684,7 @@ class PayrollEntry(Document):
 				precision,
 				payable_amount,
 				employee_wise_accounting_enabled,
+				payable_by_department,
 			)
 
 			payable_amount = self.set_accounting_entries_for_advance_deductions(
@@ -644,6 +694,7 @@ class PayrollEntry(Document):
 				accounting_dimensions,
 				precision,
 				payable_amount,
+				payable_by_department,
 			)
 
 			self.set_payable_amount_against_payroll_payable_account(
@@ -655,6 +706,7 @@ class PayrollEntry(Document):
 				payable_amount,
 				self.payroll_payable_account,
 				employee_wise_accounting_enabled,
+				payable_by_department,
 			)
 
 			# when party is not required, skip the validation in journal & gl entry
@@ -847,6 +899,7 @@ class PayrollEntry(Document):
 		precision,
 		payable_amount,
 		employee_wise_accounting_enabled,
+		payable_by_department=None,
 	):
 		# Earnings
 		for (account, cost_center, department), amount in earnings.items():
@@ -862,6 +915,7 @@ class PayrollEntry(Document):
 				entry_type="debit",
 				accounts=accounts,
 				department=department,
+				payable_by_department=payable_by_department,
 			)
 
 		# Deductions
@@ -878,6 +932,7 @@ class PayrollEntry(Document):
 				entry_type="credit",
 				accounts=accounts,
 				department=department,
+				payable_by_department=payable_by_department,
 			)
 
 		return payable_amount
@@ -892,6 +947,7 @@ class PayrollEntry(Document):
 		payable_amount,
 		payroll_payable_account,
 		employee_wise_accounting_enabled,
+		payable_by_department=None,
 	):
 		# Payable amount
 		if employee_wise_accounting_enabled:
@@ -924,6 +980,23 @@ class PayrollEntry(Document):
 					entry_type="payable",
 					party=employee,
 					accounts=accounts,
+					department=employee_details.get("department"),
+				)
+		elif payable_by_department:
+			# one payable row per department, so that the payable of each department nets to zero
+			for department, department_payable in payable_by_department.items():
+				self.get_accounting_entries_and_payable_amount(
+					payroll_payable_account,
+					self.cost_center,
+					flt(department_payable, precision),
+					currencies,
+					company_currency,
+					0,
+					accounting_dimensions,
+					precision,
+					entry_type="payable",
+					accounts=accounts,
+					department=department,
 				)
 		else:
 			payable_amount = self.get_accounting_entries_and_payable_amount(
@@ -956,6 +1029,7 @@ class PayrollEntry(Document):
 		reference_name=None,
 		is_advance=None,
 		department=None,
+		payable_by_department=None,
 	):
 		exchange_rate, amt = self.get_amount_and_exchange_rate_for_journal_entry(
 			account, amount, company_currency, currencies
@@ -970,6 +1044,10 @@ class PayrollEntry(Document):
 
 		if entry_type == "debit":
 			payable_amount += flt(amount, precision)
+			if payable_by_department is not None:
+				payable_by_department[department] = payable_by_department.get(department, 0) + flt(
+					amount, precision
+				)
 			row.update(
 				{
 					"debit_in_account_currency": flt(amt, precision),
@@ -977,6 +1055,10 @@ class PayrollEntry(Document):
 			)
 		elif entry_type == "credit":
 			payable_amount -= flt(amount, precision)
+			if payable_by_department is not None:
+				payable_by_department[department] = payable_by_department.get(department, 0) - flt(
+					amount, precision
+				)
 			row.update(
 				{
 					"credit_in_account_currency": flt(amt, precision),
@@ -1082,6 +1164,8 @@ class PayrollEntry(Document):
 		)
 
 		salary_slip_total = 0
+		# net pay per department of the slips, for the payable debit rows of the payment entry
+		payable_by_department = {}
 		salary_details = self.get_salary_slip_details(for_withheld_salaries)
 
 		for salary_detail in salary_details:
@@ -1097,13 +1181,23 @@ class PayrollEntry(Document):
 							salary_detail.employee,
 							salary_detail.amount,
 							salary_detail.salary_structure,
+							department=salary_detail.department,
 						)
+					department = salary_detail.department
 					if parent_field == "earnings":
 						salary_slip_total += salary_detail.amount
+						payable_by_department[department] = (
+							payable_by_department.get(department, 0) + salary_detail.amount
+						)
 					elif parent_field == "deductions":
 						salary_slip_total -= salary_detail.amount
+						payable_by_department[department] = (
+							payable_by_department.get(department, 0) - salary_detail.amount
+						)
 
-		total_loan_repayment = self.process_loan_repayments_for_bank_entry(salary_details) or 0
+		total_loan_repayment = (
+			self.process_loan_repayments_for_bank_entry(salary_details, payable_by_department) or 0
+		)
 		salary_slip_total -= total_loan_repayment
 
 		bank_entry = None
@@ -1111,7 +1205,7 @@ class PayrollEntry(Document):
 		if salary_slip_total > 0:
 			remark = "withheld salaries" if for_withheld_salaries else "salaries"
 			bank_entry = self.set_accounting_entries_for_bank_entry(
-				salary_slip_total, remark, employee_wise_accounting_enabled
+				salary_slip_total, remark, employee_wise_accounting_enabled, payable_by_department
 			)
 
 			if for_withheld_salaries:
@@ -1130,6 +1224,7 @@ class PayrollEntry(Document):
 			.select(
 				SalarySlip.name,
 				SalarySlip.employee,
+				SalarySlip.department,
 				SalarySlip.salary_structure,
 				SalarySlip.salary_withholding_cycle,
 				SalaryDetail.salary_component,
@@ -1161,9 +1256,18 @@ class PayrollEntry(Document):
 		return query.run(as_dict=True)
 
 	@if_lending_app_installed
-	def process_loan_repayments_for_bank_entry(self, salary_details: list[dict]) -> float:
+	def process_loan_repayments_for_bank_entry(
+		self, salary_details: list[dict], payable_by_department: dict | None = None
+	) -> float:
 		unique_salary_slips = {row["employee"]: row for row in salary_details}.values()
 		total_loan_repayment = sum(flt(slip.get("total_loan_repayment", 0)) for slip in unique_salary_slips)
+
+		if payable_by_department is not None:
+			for salary_slip in unique_salary_slips:
+				department = salary_slip.get("department")
+				payable_by_department[department] = payable_by_department.get(department, 0) - flt(
+					salary_slip.get("total_loan_repayment", 0)
+				)
 
 		if self.employee_based_payroll_payable_entries:
 			for salary_slip in unique_salary_slips:
@@ -1173,12 +1277,13 @@ class PayrollEntry(Document):
 						salary_slip.employee,
 						salary_slip.total_loan_repayment,
 						salary_slip.salary_structure,
+						department=salary_slip.get("department"),
 					)
 
 		return total_loan_repayment
 
 	def set_accounting_entries_for_bank_entry(
-		self, je_payment_amount, user_remark, employee_wise_accounting_enabled
+		self, je_payment_amount, user_remark, employee_wise_accounting_enabled, payable_by_department=None
 	):
 		payroll_payable_account = self.payroll_payable_account
 		precision = frappe.get_precision("Journal Entry Account", "debit_in_account_currency")
@@ -1191,18 +1296,20 @@ class PayrollEntry(Document):
 		exchange_rate, amount = self.get_amount_and_exchange_rate_for_journal_entry(
 			self.payment_account, je_payment_amount, company_currency, currencies
 		)
-		accounts.append(
-			self.update_accounting_dimensions(
-				{
-					"account": self.payment_account,
-					"bank_account": self.bank_account,
-					"credit_in_account_currency": flt(amount, precision),
-					"exchange_rate": flt(exchange_rate),
-					"cost_center": self.cost_center,
-				},
-				accounting_dimensions,
-			)
+		payment_row = self.update_accounting_dimensions(
+			{
+				"account": self.payment_account,
+				"bank_account": self.bank_account,
+				"credit_in_account_currency": flt(amount, precision),
+				"exchange_rate": flt(exchange_rate),
+				"cost_center": self.cost_center,
+			},
+			accounting_dimensions,
 		)
+		# the bank or cash side belongs to no employee: the department of the Payroll Entry, if any
+		if self.get("department"):
+			payment_row["department"] = self.department
+		accounts.append(payment_row)
 
 		if self.employee_based_payroll_payable_entries:
 			for employee, employee_details in self.employee_based_payroll_payable_entries.items():
@@ -1223,32 +1330,65 @@ class PayrollEntry(Document):
 					employee, employee_details.get("salary_structure")
 				)
 
-				for cost_center, percentage in cost_centers.items():
-					amount_against_cost_center = flt(amount) * percentage / 100
-					accounts.append(
-						self.update_accounting_dimensions(
-							{
-								"account": payroll_payable_account,
-								"debit_in_account_currency": flt(amount_against_cost_center, precision),
-								"exchange_rate": flt(exchange_rate),
-								"reference_type": self.doctype,
-								"reference_name": self.name,
-								"party_type": "Employee",
-								"party": employee,
-								"cost_center": cost_center,
-							},
-							accounting_dimensions,
-						)
+				# the last cost center takes the rounding remainder, so that the splits add up to the pay
+				cost_center_items = list(cost_centers.items())
+				allocated = 0
+				for index, (cost_center, percentage) in enumerate(cost_center_items):
+					if index == len(cost_center_items) - 1:
+						amount_against_cost_center = flt(flt(amount, precision) - allocated, precision)
+					else:
+						amount_against_cost_center = flt(flt(amount) * percentage / 100, precision)
+						allocated += amount_against_cost_center
+					row = self.update_accounting_dimensions(
+						{
+							"account": payroll_payable_account,
+							"debit_in_account_currency": amount_against_cost_center,
+							"exchange_rate": flt(exchange_rate),
+							"reference_type": self.doctype,
+							"reference_name": self.name,
+							"party_type": "Employee",
+							"party": employee,
+							"cost_center": cost_center,
+						},
+						accounting_dimensions,
 					)
+					if employee_details.get("department"):
+						row["department"] = employee_details.get("department")
+					accounts.append(row)
 		else:
 			exchange_rate, amount = self.get_amount_and_exchange_rate_for_journal_entry(
 				payroll_payable_account, je_payment_amount, company_currency, currencies
 			)
-			accounts.append(
-				self.update_accounting_dimensions(
+			# one payable debit row per department, so that the payable of each department nets to zero;
+			# the last department takes the rounding remainder. A payable account in a foreign currency
+			# gets a single row: ERPNext converts each row to company currency on its own, so a split
+			# could be off by a cent there.
+			department_payables = [
+				(department, department_payable)
+				for department, department_payable in (payable_by_department or {}).items()
+				if flt(department_payable, precision)
+			]
+			if (
+				not department_payables
+				or frappe.db.get_value("Account", payroll_payable_account, "account_currency")
+				!= company_currency
+			):
+				department_payables = [(None, je_payment_amount)]
+			allocated = 0
+			for index, (department, department_payable) in enumerate(department_payables):
+				if index == len(department_payables) - 1:
+					row_amount = flt(flt(amount, precision) - allocated, precision)
+				else:
+					row_amount = flt(
+						self.get_amount_and_exchange_rate_for_journal_entry(
+							payroll_payable_account, department_payable, company_currency, currencies
+						)[1],
+						precision,
+					)
+					allocated += row_amount
+				row = self.update_accounting_dimensions(
 					{
 						"account": payroll_payable_account,
-						"debit_in_account_currency": flt(amount, precision),
 						"exchange_rate": flt(exchange_rate),
 						"reference_type": self.doctype,
 						"reference_name": self.name,
@@ -1256,7 +1396,12 @@ class PayrollEntry(Document):
 					},
 					accounting_dimensions,
 				)
-			)
+				row["debit_in_account_currency" if row_amount >= 0 else "credit_in_account_currency"] = abs(
+					row_amount
+				)
+				if department:
+					row["department"] = department
+				accounts.append(row)
 
 		return self.make_journal_entry(
 			accounts,
@@ -1719,10 +1864,34 @@ def log_payroll_failure(process, payroll_entry, error):
 	payroll_entry.db_set({"error_message": error_message, "status": "Failed"})
 
 
-def create_salary_slips_for_employees(employees, args, publish_progress=True):
+def delete_draft_salary_slips(payroll_entry_name: str) -> list[str]:
+	"""Deletes the draft Salary Slips of a draft Payroll Entry so they can be calculated again.
+
+	Submitted and cancelled slips, and slips a Payroll Correction refers to, are never touched. The
+	slips go through frappe.delete_doc so the on_trash guards still apply.
+	"""
+	if frappe.db.get_value("Payroll Entry", payroll_entry_name, "docstatus") != 0:
+		return []
+
+	deleted = []
+	for slip in frappe.get_all(
+		"Salary Slip", filters={"payroll_entry": payroll_entry_name, "docstatus": 0}, pluck="name"
+	):
+		if frappe.db.exists("Payroll Correction", {"salary_slip_reference": slip}):
+			continue
+		frappe.delete_doc("Salary Slip", slip)
+		deleted.append(slip)
+
+	return deleted
+
+
+def create_salary_slips_for_employees(employees, args, publish_progress=True, recalculate=False):
 	payroll_entry = frappe.get_cached_doc("Payroll Entry", args.payroll_entry)
 
 	try:
+		if recalculate:
+			delete_draft_salary_slips(args.payroll_entry)
+
 		salary_slips_exist_for = get_existing_salary_slips(employees, args)
 		count = 0
 
