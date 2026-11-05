@@ -175,8 +175,7 @@ class EmployeeProfessionalLicense(Document):
 		self.verification_status = previous.verification_status
 
 	def validate_submission(self):
-		if not self.license_document:
-			frappe.throw(_("Attach the license document before submitting it for review"))
+		# The license document file is optional (Connect Diagnostics, 5 Nov 2026: no form forces an attachment).
 		if not self.license_number or not self.license_type or not self.issue_date:
 			frappe.throw(_("License Type, License Number, and Issue Date are required"))
 		if not self.no_expiry and not self.expiry_date:
