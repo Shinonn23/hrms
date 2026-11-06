@@ -88,6 +88,7 @@ class ExpenseClaim(AccountsController):
 		self.validate_employee_scope()
 		set_employee_name(self)
 		self.set_company_currency_if_multi_currency_disabled()
+		self.set_default_payable_account()
 		self.validate_sanctioned_amount()
 		self.calculate_total_amount()
 		self.validate_advances()
@@ -101,6 +102,17 @@ class ExpenseClaim(AccountsController):
 
 		if flt(self.grand_total) > 0 and self.total_advance_amount:
 			self.is_paid = 0
+
+	def set_default_payable_account(self):
+		"""The claimant never opens the Accounting tab (UX review, 6 Nov 2026): the Company's default expense
+		claim payable account is filled on save when the form did not (the browser fills it too)."""
+		if self.payable_account or not self.company:
+			return
+		if self.currency and self.currency != erpnext.get_company_currency(self.company):
+			return
+		self.payable_account = frappe.get_cached_value(
+			"Company", self.company, "default_expense_claim_payable_account"
+		) or frappe.get_cached_value("Company", self.company, "default_payroll_payable_account")
 
 	def set_status(self, update=False):
 		status = {"0": "Draft", "1": "Submitted", "2": "Cancelled"}[cstr(self.docstatus or 0)]
