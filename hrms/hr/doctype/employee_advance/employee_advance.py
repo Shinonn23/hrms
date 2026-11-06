@@ -22,6 +22,10 @@ class EmployeeAdvanceOverPayment(frappe.ValidationError):
 class EmployeeAdvance(Document):
 	def validate(self):
 		validate_active_employee(self.employee)
+		# the requester never sees the Currency section (UX review, 6 Nov 2026): without the employee's salary
+		# currency the company's currency is used
+		if not self.currency and self.company:
+			self.currency = erpnext.get_company_currency(self.company)
 		self.validate_advance_account_currency()
 		self.validate_advance_account_type()
 		self.set_status()
