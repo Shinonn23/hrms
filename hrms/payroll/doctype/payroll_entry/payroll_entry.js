@@ -55,6 +55,8 @@ frappe.ui.form.on("Payroll Entry", {
 				filters: {
 					company: frm.doc.company,
 					root_type: "Liability",
+					// the submit refuses any other type ("Account type should be set Payable"); offer only these
+					account_type: "Payable",
 					is_group: 0,
 				},
 			};
@@ -64,11 +66,17 @@ frappe.ui.form.on("Payroll Entry", {
 	refresh: (frm) => {
 		if (frm.doc.status === "Queued") frm.page.btn_secondary.hide();
 
+		// Get Employees belongs to a round still open for changes: a draft, or one sent back. An approver looking at
+		// a round that waits for approval does not see it (UX review, 6 Nov 2026).
+		const round_is_open =
+			!frm.doc.workflow_state || ["Plan Draft", "Plan Rejected"].includes(frm.doc.workflow_state);
 		if (frm.doc.docstatus === 0 && !frm.is_new()) {
 			frm.page.clear_primary_action();
-			frm.add_custom_button(__("Get Employees"), function () {
-				frm.events.get_employee_details(frm);
-			}).toggleClass("btn-primary", !(frm.doc.employees || []).length);
+			if (round_is_open) {
+				frm.add_custom_button(__("Get Employees"), function () {
+					frm.events.get_employee_details(frm);
+				}).toggleClass("btn-primary", !(frm.doc.employees || []).length);
+			}
 		}
 
 		if (
