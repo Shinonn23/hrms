@@ -71,7 +71,14 @@ class PayrollEntry(Document):
 
 	def validate(self):
 		self.number_of_employees = len(self.employees)
+		self.set_default_payment_account()
 		self.set_status()
+
+	def set_default_payment_account(self):
+		"""The Payment Account is the Company's default bank account unless the operator chose another (UX
+		review, 6 Nov 2026: it was typed on every run)."""
+		if not self.payment_account and self.company:
+			self.payment_account = frappe.get_cached_value("Company", self.company, "default_bank_account")
 
 	def set_status(self, status=None, update=False):
 		if not status:

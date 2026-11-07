@@ -78,6 +78,11 @@ def make_employee(source_name: str, target_doc: str | Document | None = None) ->
 		target.personal_email = frappe.db.get_value("Job Offer", source.job_offer, "applicant_email")
 		target.job_offer = source.job_offer
 		target.status = "Active"
+		# "First Last" of the applicant becomes First Name and Last Name instead of one long First Name (UX
+		# review, 6 Nov 2026); the Employee's full name is unchanged
+		first, _sep, last = (target.first_name or "").strip().partition(" ")
+		if last.strip():
+			target.first_name, target.last_name = first, last.strip()
 
 	doc = get_mapped_doc(
 		"Employee Onboarding",

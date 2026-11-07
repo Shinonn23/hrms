@@ -37,6 +37,16 @@ class AttendanceRequest(Document):
 		if len(attendance_warnings) == attendance_request_days and not any(
 			warning["action"] == "Overwrite" for warning in attendance_warnings
 		):
+			if all(warning["reason"] == "Holiday" for warning in attendance_warnings):
+				# plain words instead of a Date / Reason / "Action: Skip" table (UX review, 6 Nov 2026)
+				dates = ", ".join(format_date(warning["date"]) for warning in attendance_warnings)
+				frappe.throw(
+					_(
+						"{0} is a holiday; no attendance is needed. Tick Include Holidays if you worked that day."
+						if len(attendance_warnings) == 1
+						else "{0} are holidays; no attendance is needed. Tick Include Holidays if you worked those days."
+					).format(dates)
+				)
 			message_table = [[_("Date"), _("Reason"), _("Action")]]
 			for warning in attendance_warnings:
 				message_table.append(
