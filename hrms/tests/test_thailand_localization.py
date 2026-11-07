@@ -241,3 +241,57 @@ class TestEmployeeNameLayout(TestCase):
 		self.assertEqual(fields["sign_button"]["insert_after"], "signature")
 		self.assertIn(("Employee", "signature", "read_only", 1, "Check"), constants.PROPERTY_SETTERS)
 		self.assertIn("public/js/thailand/employee.js", hooks.doctype_js["Employee"])
+
+
+class TestMigrateWritesSchemaOnly(TestCase):
+	"""A migrate adds what is missing; it never overwrites a field and never gives the payroll rights again."""
+
+	def setUp(self):
+		from hrms.regional.thailand import setup as thai_setup
+
+		self.setup = thai_setup
+		patches = [
+			patch.object(thai_setup, "create_custom_fields"),
+			patch.object(thai_setup, "make_property_setter"),
+			patch.object(thai_setup, "add_permission"),
+			patch.object(thai_setup, "update_permission_property"),
+			patch.object(thai_setup, "make_salutations"),
+			patch.object(frappe, "clear_cache"),
+			patch.object(frappe, "db", Mock(exists=Mock(return_value=False))),
+		]
+		self.mocks = [item.start() for item in patches]
+		for item in patches:
+			self.addCleanup(item.stop)
+		(self.create, self.make_setter, self.add_permission, self.update_permission) = self.mocks[:4]
+
+	def test_a_migrate_creates_fields_without_overwriting_and_gives_no_rights(self):
+		self.setup.after_migrate()
+		self.assertEqual(self.create.call_count, 1)
+		self.assertIs(self.create.call_args.kwargs["update"], False)
+		self.add_permission.assert_not_called()
+		self.update_permission.assert_not_called()
+
+	def test_a_property_the_site_has_is_not_written_again_by_a_migrate(self):
+		frappe.db.exists.return_value = True
+		self.setup.after_migrate()
+		self.make_setter.assert_not_called()
+		frappe.db.exists.return_value = False
+		self.setup.after_migrate()
+		self.assertEqual(self.make_setter.call_count, len(constants.PROPERTY_SETTERS))
+
+	def test_the_patch_still_writes_the_series_over_a_site_value(self):
+		frappe.db.exists.return_value = True
+		self.setup.make_property_setters()
+		self.assertEqual(self.make_setter.call_count, len(constants.PROPERTY_SETTERS))
+
+	def test_the_rights_are_given_once_at_install(self):
+		self.setup.after_install()
+		self.assertEqual(self.add_permission.call_count, len(constants.PAYROLL_ROLES))
+		self.assertEqual(self.update_permission.call_count, 2 * len(constants.PAYROLL_ROLES))
+		self.assertIs(self.create.call_args.kwargs["update"], False)
+
+	def test_the_hooks_run_the_migrate_and_install_entry_points(self):
+		self.assertIn("hrms.regional.thailand.setup.after_migrate", hooks.after_migrate)
+		from hrms import install
+
+		self.assertIs(install.setup_thailand, self.setup.after_install)
