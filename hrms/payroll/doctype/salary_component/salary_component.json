@@ -14,6 +14,7 @@
   "salary_component",
   "salary_component_abbr",
   "type",
+  "thai_statutory_type",
   "description",
   "column_break_4",
   "depends_on_payment_days",
@@ -293,12 +294,19 @@
    "fieldname": "final_cycle_accrual_payout",
    "fieldtype": "Check",
    "label": "Payout Unclaimed Amount in Final Payroll Cycle"
+  },
+  {
+   "description": "Which Thai filing this component feeds: PND1 / 50 Tawi, SSO 1-10, provident fund report",
+   "fieldname": "thai_statutory_type",
+   "fieldtype": "Select",
+   "label": "Thai Statutory Type",
+   "options": "\nRegular Wage\nIncome Tax (PND1)\nSocial Security (Employee)\nSocial Security (Employer)\nProvident Fund (Employee)\nProvident Fund (Employer)"
   }
  ],
  "icon": "puzzle",
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-10-05 15:00:00.000000",
+ "modified": "2026-11-08 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Payroll",
  "name": "Salary Component",

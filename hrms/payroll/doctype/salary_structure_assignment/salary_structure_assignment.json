@@ -30,6 +30,10 @@
   "amended_from",
   "column_break_kjvm",
   "leave_encashment_amount_per_day",
+  "provident_fund_section",
+  "provident_fund_rate",
+  "provident_fund_column",
+  "provident_fund_employer_rate",
   "opening_balances_section",
   "taxable_earnings_till_date",
   "column_break_20",
@@ -265,12 +269,33 @@
    "label": "Leave Encashment Amount Per Day",
    "non_negative": 1,
    "options": "currency"
+  },
+  {
+   "fieldname": "provident_fund_section",
+   "fieldtype": "Section Break",
+   "label": "Provident Fund (Thailand)"
+  },
+  {
+   "description": "Employee savings rate. Leave blank or 0 when the employee is not a member.",
+   "fieldname": "provident_fund_rate",
+   "fieldtype": "Percent",
+   "label": "Provident Fund Rate (%)"
+  },
+  {
+   "fieldname": "provident_fund_column",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Employer contribution rate. Leave blank when it is the same as the employee's rate.",
+   "fieldname": "provident_fund_employer_rate",
+   "fieldtype": "Percent",
+   "label": "Provident Fund Employer Rate (%)"
   }
  ],
  "icon": "user-check",
  "is_submittable": 1,
  "links": [],
- "modified": "2026-10-05 15:00:00.000000",
+ "modified": "2026-11-08 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Payroll",
  "name": "Salary Structure Assignment",

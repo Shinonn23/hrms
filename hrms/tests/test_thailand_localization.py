@@ -1,6 +1,7 @@
 """Thailand payroll fields: layout checks that do not need a Frappe site."""
 
 import json
+import os
 from datetime import datetime
 from pathlib import Path
 from unittest import TestCase
@@ -14,38 +15,83 @@ from hrms.patches.v16_0 import move_thailand_provident_fund_rate_to_assignment a
 from hrms.patches.v16_0 import use_thailand_employee_series as use_series
 from hrms.regional.thailand import constants
 from hrms.regional.thailand import naming as thai_naming
+from hrms.regional.thailand import setup as thai_setup
 
 HRMS = Path(__file__).resolve().parents[1]
-ERPNEXT = HRMS.parents[1] / "erpnext" / "erpnext"
+# the ERPNext fork holds Employee and Company: next to this app in a bench, else the directory CD_FORK_ERPNEXT names
+ERPNEXT = Path(os.environ.get("CD_FORK_ERPNEXT") or HRMS.parents[1] / "erpnext") / "erpnext"
 
 
 def field_order(path):
 	return json.loads(path.read_text())["field_order"]
 
 
+# The Thailand fields of the payroll DocTypes, in the DocType JSON of the forks (Siwat, 8 Nov 2026): Employee and Company
+# are DocTypes of the ERPNext fork, Salary Structure Assignment, Salary Component and Expense Claim of this one.
+THAI_FIELDS = {
+	"Employee": (
+		"column_break_name_en",
+		"salutation_en",
+		"first_name_en",
+		"middle_name_en",
+		"last_name_en",
+		"full_name_en",
+		"sign_button",
+		"national_id_section",
+		"national_id_number",
+		"social_security_section",
+		"social_security_id",
+		"social_security_column",
+		"social_security_eligible",
+	),
+	"Salary Structure Assignment": (
+		"provident_fund_section",
+		"provident_fund_rate",
+		"provident_fund_column",
+		"provident_fund_employer_rate",
+	),
+	"Salary Component": ("thai_statutory_type",),
+	"Company": (
+		"social_security_section",
+		"social_security_account_no",
+		"social_security_column",
+		"social_security_branch_no",
+	),
+}
+JSON_OF = {
+	"Employee": ERPNEXT / "setup/doctype/employee/employee.json",
+	"Company": ERPNEXT / "setup/doctype/company/company.json",
+	"Salary Structure Assignment": HRMS
+	/ "payroll/doctype/salary_structure_assignment/salary_structure_assignment.json",
+	"Salary Component": HRMS / "payroll/doctype/salary_component/salary_component.json",
+}
+
+
+def thai_fields(doctype):
+	"""{fieldname: DocField} of the Thailand fields of `doctype` and the field_order of its JSON."""
+	document = json.loads(JSON_OF[doctype].read_text())
+	by_name = {f["fieldname"]: f for f in document["fields"]}
+	return {name: by_name[name] for name in THAI_FIELDS[doctype]}, document["field_order"]
+
+
 class TestThailandFieldLayout(TestCase):
-	def test_every_field_hangs_from_a_field_that_exists_or_is_laid_out_before_it(self):
-		known = {
-			"Employee": set(field_order(ERPNEXT / "setup/doctype/employee/employee.json")),
-			"Salary Structure Assignment": set(
-				field_order(
-					HRMS / "payroll/doctype/salary_structure_assignment/salary_structure_assignment.json"
-				)
-			),
-			# Salary Component 'type' and Company 'skills' come from the doctype and from hrms/setup.py.
-			"Salary Component": {"type"},
-			"Company": {"skills"},
-		}
-		for doctype, fields in constants.HRMS_THAILAND_CUSTOM_FIELDS.items():
-			placed = known[doctype]
-			for field in fields:
-				self.assertIn(field["insert_after"], placed, f"{doctype}.{field['fieldname']}")
-				placed.add(field["fieldname"])
+	def test_every_field_is_in_the_doctype_json_once_and_the_installer_makes_none(self):
+		for doctype, names in THAI_FIELDS.items():
+			fields, order = thai_fields(doctype)
+			self.assertEqual(set(fields), set(names), doctype)
+			for name in names:
+				self.assertEqual(order.count(name), 1, f"{doctype}.{name}")
+		self.assertFalse(hasattr(constants, "HRMS_THAILAND_CUSTOM_FIELDS"))
+		self.assertFalse(hasattr(thai_setup, "make_custom_fields"))
 
 	def test_each_section_has_a_label_and_two_columns_at_most(self):
-		for doctype, fields in constants.HRMS_THAILAND_CUSTOM_FIELDS.items():
+		for doctype in THAI_FIELDS:
+			fields, order = thai_fields(doctype)
 			columns = 0
-			for field in fields:
+			for name in order:
+				field = fields.get(name)
+				if not field:
+					continue
 				if field["fieldtype"] == "Section Break":
 					self.assertTrue(field["label"], doctype)
 					columns = 1
@@ -54,23 +100,33 @@ class TestThailandFieldLayout(TestCase):
 					self.assertLessEqual(columns, 2, doctype)
 
 	def test_the_national_id_and_social_security_id_are_payroll_private(self):
-		fields = {f["fieldname"]: f for f in constants.HRMS_THAILAND_CUSTOM_FIELDS["Employee"]}
+		fields, _ = thai_fields("Employee")
 		for name in ("national_id_number", "social_security_id"):
 			self.assertEqual(fields[name]["permlevel"], constants.PAYROLL_PERMLEVEL)
 		self.assertNotIn("permlevel", fields["social_security_eligible"])
 
 	def test_the_provident_fund_rates_are_on_the_assignment_and_nowhere_else(self):
-		names = {
-			doctype: [f["fieldname"] for f in fields]
-			for doctype, fields in constants.HRMS_THAILAND_CUSTOM_FIELDS.items()
-		}
-		self.assertIn("provident_fund_rate", names["Salary Structure Assignment"])
-		self.assertIn("provident_fund_employer_rate", names["Salary Structure Assignment"])
-		self.assertNotIn("provident_fund_rate", names["Employee"])
+		assignment, _ = thai_fields("Salary Structure Assignment")
+		self.assertIn("provident_fund_rate", assignment)
+		self.assertIn("provident_fund_employer_rate", assignment)
+		self.assertNotIn("provident_fund_rate", thai_fields("Employee")[0])
 
 	def test_the_statutory_types_are_the_select_options(self):
-		field = constants.HRMS_THAILAND_CUSTOM_FIELDS["Salary Component"][0]
+		field = thai_fields("Salary Component")[0]["thai_statutory_type"]
 		self.assertEqual(field["options"].split("\n")[1:], list(constants.STATUTORY_TYPES))
+
+
+class TestExpenseClaimTaxInvoiceFields(TestCase):
+	"""The Thailand fields of Expense Claim were Custom Fields of the ERPNext fork; they are in its JSON now."""
+
+	def test_the_claim_has_the_tax_invoice_link_fields(self):
+		document = json.loads((HRMS / "hr/doctype/expense_claim/expense_claim.json").read_text())
+		fields = {f["fieldname"]: f for f in document["fields"]}
+		self.assertEqual(fields["tax_invoice_ref"]["options"], "tax_invoice_ref_type")
+		self.assertEqual(fields["tax_invoice_ref"]["fieldtype"], "Dynamic Link")
+		self.assertEqual(fields["tax_invoice_ref_type"]["hidden"], 1)
+		for name in ("tax_invoice", "tax_invoice_number", "tax_invoice_date", "company_tax_address"):
+			self.assertIn(name, document["field_order"])
 
 
 def row(**values):
@@ -95,11 +151,10 @@ class TestMoveProvidentFundRate(TestCase):
 		with (
 			patch.object(move_rates, "frappe", frappe_mock),
 			patch.object(move_rates, "today", return_value="2026-10-24"),
-			patch.object(move_rates, "make_custom_fields") as fields,
 			patch("builtins.print"),
 		):
 			move_rates.execute()
-		return frappe_mock, fields
+		return frappe_mock
 
 	def test_the_rate_goes_to_the_assignment_in_force_and_the_employee_fields_are_removed(self):
 		members = [row(name="6511003", provident_fund_rate=5, provident_fund_employer_rate=0)]
@@ -109,8 +164,7 @@ class TestMoveProvidentFundRate(TestCase):
 				row(name="SSA-NOW", from_date="2026-01-01", provident_fund_rate=0),
 			]
 		}
-		frappe_mock, fields = self.run_patch(members, assignments)
-		fields.assert_called_once()
+		frappe_mock = self.run_patch(members, assignments)
 		frappe_mock.db.set_value.assert_called_once_with(
 			"Salary Structure Assignment",
 			"SSA-NOW",
@@ -125,20 +179,19 @@ class TestMoveProvidentFundRate(TestCase):
 	def test_an_assignment_that_already_has_a_rate_is_left_alone(self):
 		members = [row(name="6511003", provident_fund_rate=5, provident_fund_employer_rate=0)]
 		assignments = {"6511003": [row(name="SSA-NOW", from_date="2026-01-01", provident_fund_rate=3)]}
-		frappe_mock, _ = self.run_patch(members, assignments)
+		frappe_mock = self.run_patch(members, assignments)
 		frappe_mock.db.set_value.assert_not_called()
 		frappe_mock.log_error.assert_not_called()
 
 	def test_a_rate_with_no_assignment_is_logged_before_the_field_goes(self):
 		members = [row(name="6511003", provident_fund_rate=5, provident_fund_employer_rate=0)]
-		frappe_mock, _ = self.run_patch(members, {"6511003": []})
+		frappe_mock = self.run_patch(members, {"6511003": []})
 		frappe_mock.db.set_value.assert_not_called()
 		self.assertIn("6511003", frappe_mock.log_error.call_args.kwargs["message"])
 		self.assertTrue(frappe_mock.delete_doc.called)
 
-	def test_a_site_without_the_employee_columns_only_gets_the_assignment_fields(self):
-		frappe_mock, fields = self.run_patch([], {}, columns=())
-		fields.assert_called_once()
+	def test_a_site_without_the_employee_columns_copies_nothing(self):
+		frappe_mock = self.run_patch([], {}, columns=())
 		frappe_mock.log_error.assert_not_called()
 		frappe_mock.db.set_value.assert_not_called()
 
@@ -218,27 +271,19 @@ class TestEmployeeNameLayout(TestCase):
 		thai = ["naming_series", "salutation", "first_name", "middle_name", "last_name", "employee_name"]
 		self.assertEqual([order.index(f) for f in thai], sorted(order.index(f) for f in thai))
 		self.assertNotIn("column_break1", order)
-		english = [f["fieldname"] for f in constants.HRMS_THAILAND_CUSTOM_FIELDS["Employee"][:6]]
-		self.assertEqual(
-			english,
-			[
-				"column_break_name_en",
-				"salutation_en",
-				"first_name_en",
-				"middle_name_en",
-				"last_name_en",
-				"full_name_en",
-			],
-		)
+		english = ["column_break_name_en", "salutation_en", "first_name_en", "middle_name_en", "last_name_en"]
+		start = order.index("column_break_name_en")
+		self.assertEqual(order[start : start + 6], [*english, "full_name_en"])
+		self.assertLess(order.index("employee_name"), start)
 		self.assertLess(order.index("employee_name"), order.index("column_break_9"))
 		self.assertLess(order.index("column_break_9"), order.index("gender"))
 		self.assertLess(order.index("date_of_birth"), order.index("date_of_joining"))
 		self.assertLess(order.index("date_of_joining"), order.index("status"))
 
 	def test_the_signature_is_shown_and_made_with_a_button(self):
-		fields = {f["fieldname"]: f for f in constants.HRMS_THAILAND_CUSTOM_FIELDS["Employee"]}
+		fields, order = thai_fields("Employee")
 		self.assertEqual(fields["sign_button"]["fieldtype"], "Button")
-		self.assertEqual(fields["sign_button"]["insert_after"], "signature")
+		self.assertEqual(order[order.index("sign_button") - 1], "signature")
 		self.assertIn(("Employee", "signature", "read_only", 1, "Check"), constants.PROPERTY_SETTERS)
 		self.assertIn("public/js/thailand/employee.js", hooks.doctype_js["Employee"])
 
@@ -251,7 +296,6 @@ class TestMigrateWritesSchemaOnly(TestCase):
 
 		self.setup = thai_setup
 		patches = [
-			patch.object(thai_setup, "create_custom_fields"),
 			patch.object(thai_setup, "make_property_setter"),
 			patch.object(thai_setup, "add_permission"),
 			patch.object(thai_setup, "update_permission_property"),
@@ -262,12 +306,11 @@ class TestMigrateWritesSchemaOnly(TestCase):
 		self.mocks = [item.start() for item in patches]
 		for item in patches:
 			self.addCleanup(item.stop)
-		(self.create, self.make_setter, self.add_permission, self.update_permission) = self.mocks[:4]
+		(self.make_setter, self.add_permission, self.update_permission) = self.mocks[:3]
 
-	def test_a_migrate_creates_fields_without_overwriting_and_gives_no_rights(self):
+	def test_a_migrate_makes_no_field_and_gives_no_rights(self):
 		self.setup.after_migrate()
-		self.assertEqual(self.create.call_count, 1)
-		self.assertIs(self.create.call_args.kwargs["update"], False)
+		self.assertFalse(hasattr(self.setup, "create_custom_fields"))
 		self.add_permission.assert_not_called()
 		self.update_permission.assert_not_called()
 
@@ -288,7 +331,6 @@ class TestMigrateWritesSchemaOnly(TestCase):
 		self.setup.after_install()
 		self.assertEqual(self.add_permission.call_count, len(constants.PAYROLL_ROLES))
 		self.assertEqual(self.update_permission.call_count, 2 * len(constants.PAYROLL_ROLES))
-		self.assertIs(self.create.call_args.kwargs["update"], False)
 
 	def test_the_hooks_run_the_migrate_and_install_entry_points(self):
 		self.assertIn("hrms.regional.thailand.setup.after_migrate", hooks.after_migrate)

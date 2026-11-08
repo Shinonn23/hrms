@@ -13,6 +13,9 @@
   "employee",
   "employee_name",
   "department",
+  "is_petty_cash",
+  "petty_cash_holder",
+  "petty_cash_holder_name",
   "company",
   "currency_section",
   "currency",
@@ -41,6 +44,21 @@
   "gain_loss_section",
   "total_exchange_gain_loss",
   "gain_loss_account",
+  "tax_invoice",
+  "company_tax_address",
+  "column_break_rqacr",
+  "base_amount_overwrite",
+  "section_break_split_tax_invoice",
+  "split_tax_invoice",
+  "splitted_tax_invoices",
+  "section_break_uodhb",
+  "tax_invoice_number",
+  "supplier",
+  "column_break_6atpw",
+  "tax_invoice_date",
+  "supplier_name",
+  "tax_invoice_ref_type",
+  "tax_invoice_ref",
   "accounting_details_tab",
   "accounting_details",
   "posting_date",
@@ -480,13 +498,143 @@
    "label": "Total Exchange Gain/Loss",
    "options": "Company:company:default_currency",
    "read_only": 1
+  },
+  {
+   "fieldname": "tax_invoice",
+   "fieldtype": "Tab Break",
+   "label": "Tax Invoice"
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "company_tax_address",
+   "fieldtype": "Link",
+   "label": "Company Tax Address",
+   "options": "Address"
+  },
+  {
+   "fieldname": "column_break_rqacr",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "eval:!doc.split_tax_invoice",
+   "description": "Use this field only when you want to overwrite",
+   "fieldname": "base_amount_overwrite",
+   "fieldtype": "Currency",
+   "label": "Base Amount Overwrite",
+   "no_copy": 1,
+   "options": "Company:company:default_currency"
+  },
+  {
+   "fieldname": "section_break_split_tax_invoice",
+   "fieldtype": "Section Break",
+   "label": ""
+  },
+  {
+   "fieldname": "split_tax_invoice",
+   "fieldtype": "Check",
+   "label": "Split Tax Invoices",
+   "no_copy": 1
+  },
+  {
+   "depends_on": "eval:doc.split_tax_invoice",
+   "fieldname": "splitted_tax_invoices",
+   "fieldtype": "Table",
+   "label": "Splitted Tax Invoices",
+   "options": "Expense Claim Tax Invoice Detail"
+  },
+  {
+   "depends_on": "eval:!doc.split_tax_invoice",
+   "fieldname": "section_break_uodhb",
+   "fieldtype": "Section Break"
+  },
+  {
+   "allow_on_submit": 1,
+   "depends_on": "eval:!doc.split_tax_invoice",
+   "fieldname": "tax_invoice_number",
+   "fieldtype": "Data",
+   "in_standard_filter": 1,
+   "label": "Tax Invoice Number",
+   "read_only_depends_on": "eval:doc.docstatus!=0"
+  },
+  {
+   "allow_on_submit": 1,
+   "depends_on": "eval:!doc.split_tax_invoice",
+   "fieldname": "supplier",
+   "fieldtype": "Link",
+   "label": "Supplier",
+   "no_copy": 1,
+   "options": "Supplier"
+  },
+  {
+   "depends_on": "eval:!doc.split_tax_invoice",
+   "fieldname": "column_break_6atpw",
+   "fieldtype": "Column Break"
+  },
+  {
+   "allow_on_submit": 1,
+   "depends_on": "eval:!doc.split_tax_invoice",
+   "fieldname": "tax_invoice_date",
+   "fieldtype": "Date",
+   "label": "Tax Invoice Date",
+   "no_copy": 1,
+   "read_only_depends_on": "eval:doc.docstatus!=0"
+  },
+  {
+   "allow_on_submit": 1,
+   "depends_on": "eval:!doc.split_tax_invoice",
+   "fetch_from": "supplier.supplier_name",
+   "fieldname": "supplier_name",
+   "fieldtype": "Data",
+   "label": "Supplier Name",
+   "no_copy": 1
+  },
+  {
+   "fieldname": "is_petty_cash",
+   "fieldtype": "Check",
+   "label": "Is Petty Cash"
+  },
+  {
+   "depends_on": "eval:doc.is_petty_cash == 1;",
+   "fieldname": "petty_cash_holder",
+   "fieldtype": "Link",
+   "label": "Petty Cash Holder",
+   "mandatory_depends_on": "eval:doc.is_petty_cash == 1;",
+   "options": "Petty Cash Holder"
+  },
+  {
+   "depends_on": "eval:doc.is_petty_cash == 1;",
+   "fetch_from": "petty_cash_holder.petty_cash_holder",
+   "fieldname": "petty_cash_holder_name",
+   "fieldtype": "Data",
+   "label": "Petty Cash Holder Name",
+   "read_only": 1
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "tax_invoice_ref_type",
+   "fieldtype": "Link",
+   "hidden": 1,
+   "label": "Tax Invoice Type",
+   "no_copy": 1,
+   "options": "DocType",
+   "read_only": 1
+  },
+  {
+   "allow_on_submit": 1,
+   "depends_on": "eval:!doc.split_tax_invoice",
+   "fieldname": "tax_invoice_ref",
+   "fieldtype": "Dynamic Link",
+   "label": "Tax Invoice Record",
+   "no_copy": 1,
+   "options": "tax_invoice_ref_type",
+   "read_only": 1
   }
  ],
  "icon": "receipt",
  "idx": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-10-21 05:30:00.000000",
+ "modified": "2026-11-08 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "HR",
  "name": "Expense Claim",

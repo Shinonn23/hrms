@@ -1,12 +1,12 @@
-"""Thai payroll localization of HRMS: the fields of `constants.py`, and who may read the payroll ones."""
+"""Thai payroll localization of HRMS: the property setters and salutations, and who may read the payroll fields.
+
+The fields themselves are in the DocType JSON of the forks (Siwat, 8 Nov 2026)."""
 
 import frappe
-from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 from frappe.custom.doctype.property_setter.property_setter import make_property_setter
 from frappe.permissions import add_permission, update_permission_property
 
 from hrms.regional.thailand.constants import (
-	HRMS_THAILAND_CUSTOM_FIELDS,
 	PAYROLL_PERMLEVEL,
 	PAYROLL_ROLES,
 	PROPERTY_SETTERS,
@@ -26,14 +26,9 @@ def after_migrate():
 
 
 def setup():
-	"""Idempotent and create-only: a field or property that exists is left as the site has it."""
-	make_custom_fields()
+	"""Idempotent and create-only: a property that exists is left as the site has it."""
 	make_property_setters(overwrite=False)
 	make_salutations()
-
-
-def make_custom_fields():
-	create_custom_fields(HRMS_THAILAND_CUSTOM_FIELDS, ignore_validate=True, update=False)
 
 
 def make_property_setters(overwrite=True):

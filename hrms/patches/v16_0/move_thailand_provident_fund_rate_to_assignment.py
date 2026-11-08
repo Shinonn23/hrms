@@ -12,15 +12,13 @@ goes, for the payroll team to enter on the employee's next assignment.
 import frappe
 from frappe.utils import today
 
-from hrms.regional.thailand.setup import make_custom_fields
-
 FIELDS = ("provident_fund_rate", "provident_fund_employer_rate")
 
 
 def execute():
 	if not frappe.db.table_exists("Salary Structure Assignment"):
 		return
-	make_custom_fields()
+	# the assignment fields are in the DocType JSON (the model sync made them before this patch)
 	frappe.clear_cache(doctype="Salary Structure Assignment")
 	present = [field for field in FIELDS if frappe.db.has_column("Employee", field)]
 	if present:
