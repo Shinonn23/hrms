@@ -473,8 +473,9 @@ class TestExpenseClaim(HRMSTestSuite):
 			},
 		)
 
-		# assert is_paid to be checked true as claim is done via advance actions button
-		self.assertTrue(claim.is_paid)
+		# a claim made from an advance is not paid by the company: the advance is allocated instead
+		self.assertFalse(claim.is_paid)
+		self.assertEqual(claim.total_advance_amount, 500)
 		claim.save()
 		claim.submit()
 
