@@ -57,6 +57,7 @@ from hrms.payroll.utils import (
 	COMPONENT_PARENTFIELDS,
 	SALARY_COMPONENT_VALUES,
 	_safe_eval,
+	employee_welfare_fund_base,
 	get_component_eval_context,
 	throw_error_message,
 )
@@ -1278,6 +1279,9 @@ class SalarySlip(TransactionBase):
 
 	def add_structure_components(self, component_type):
 		self.data, self.default_data = self.get_data_for_eval()
+		if component_type != "earnings":
+			self.data["ewf_base"] = employee_welfare_fund_base(self.earnings, "amount")
+			self.default_data["ewf_base"] = employee_welfare_fund_base(self.earnings, "default_amount")
 
 		for struct_row in self._evaluated_components[component_type]:
 			self.add_structure_component(struct_row, component_type)
@@ -1298,6 +1302,13 @@ class SalarySlip(TransactionBase):
 		amount = self.eval_condition_and_formula(struct_row, self.data)
 		# amount is None when the component's condition is false for this slip
 		condition_met = amount is not None
+		if not condition_met:
+			self.set(
+				component_type,
+				[d for d in self.get(component_type) if d.salary_component != struct_row.salary_component or d.additional_salary],
+			)
+			self.data[struct_row.abbr] = self.default_data[struct_row.abbr] = 0
+			return
 		if struct_row.statistical_component or struct_row.accrual_component:
 			# update statistical component amount in reference data based on payment days
 			# since row for statistical component is not added to salary slip
@@ -1710,6 +1721,10 @@ class SalarySlip(TransactionBase):
 			self.compute_taxable_earnings_for_year()
 
 		if self.handle_additional_salary_tax_component():
+			self.set(
+				"deductions",
+				[d for d in self.get("deductions") if not d.variable_based_on_taxable_salary or d.salary_component == self.additional_salary_component],
+			)
 			self._component_based_variable_tax.setdefault(self.additional_salary_component, {})
 			self.calculate_variable_tax(self.additional_salary_component, True)
 			return

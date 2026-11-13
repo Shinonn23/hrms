@@ -68,6 +68,12 @@ class AdditionalSalary(Document):
 					"salary_component": self.salary_component,
 				},
 			)
+			if not is_structure_component and frappe.db.get_value(
+				"Salary Component", self.salary_component, "variable_based_on_taxable_salary"
+			):
+				is_structure_component = frappe.db.exists(
+					"Salary Detail", {"parenttype": "Salary Structure", "parent": salary_structure, "variable_based_on_taxable_salary": 1}
+				)
 
 			if not is_structure_component:
 				self.overwrite_salary_structure_amount = 0

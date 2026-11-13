@@ -91,7 +91,7 @@ def make_employee(source_name: str, target_doc: str | Document | None = None) ->
 			"Employee Onboarding": {
 				"doctype": "Employee",
 				"field_map": {
-					"first_name": "employee_name",
+					"employee_name": "first_name",
 					"employee_grade": "grade",
 				},
 			}

@@ -19,6 +19,7 @@
   "column_break_4",
   "depends_on_payment_days",
   "is_tax_applicable",
+  "include_in_ewf_base",
   "deduct_full_tax_on_selected_payroll_date",
   "variable_based_on_taxable_salary",
   "is_income_tax_component",
@@ -49,6 +50,14 @@
   "max_benefit_amount"
  ],
  "fields": [
+  {
+   "default": "0",
+   "depends_on": "eval:doc.type == 'Earning'",
+   "description": "Include this earning in the Employee Welfare Fund contribution base.",
+   "fieldname": "include_in_ewf_base",
+   "fieldtype": "Check",
+   "label": "Include in Employee Welfare Fund Base"
+  },
   {
    "fieldname": "salary_component",
    "fieldtype": "Data",
@@ -296,11 +305,11 @@
    "label": "Payout Unclaimed Amount in Final Payroll Cycle"
   },
   {
-   "description": "Which Thai filing this component feeds: PND1 / 50 Tawi, SSO 1-10, provident fund report",
+   "description": "Employee = amount deducted from the employee; Employer = amount paid by the company.",
    "fieldname": "thai_statutory_type",
    "fieldtype": "Select",
    "label": "Thai Statutory Type",
-   "options": "\nRegular Wage\nIncome Tax (PND1)\nSocial Security (Employee)\nSocial Security (Employer)\nProvident Fund (Employee)\nProvident Fund (Employer)"
+   "options": "\nRegular Wage\nIncome Tax (PND1)\nSocial Security (Employee)\nSocial Security (Employer)\nProvident Fund (Employee)\nProvident Fund (Employer)\nEmployee Welfare Fund (Employee)\nEmployee Welfare Fund (Employer)"
   }
  ],
  "icon": "puzzle",

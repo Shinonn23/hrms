@@ -52,7 +52,7 @@ class TestEmployeeOnboarding(HRMSTestSuite):
 		# make employee
 		onboarding.reload()
 		employee = make_employee(onboarding.name)
-		employee.first_name = employee.employee_name
+		self.assertEqual(" ".join(filter(None, (employee.first_name, employee.last_name))), employee.employee_name)
 		employee.date_of_joining = getdate()
 		employee.date_of_birth = "1990-05-08"
 		employee.gender = "Female"

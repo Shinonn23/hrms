@@ -7,7 +7,7 @@ from frappe.model import numeric_fieldtypes
 from frappe.model.create_new import get_new_doc
 from frappe.query_builder import DocType
 from frappe.query_builder.functions import Extract
-from frappe.utils import ceil, floor, get_first_day, get_last_day, get_link_to_form, getdate, rounded
+from frappe.utils import ceil, floor, flt, get_first_day, get_last_day, get_link_to_form, getdate, rounded
 
 
 def sanitize_expression(string: str | None = None) -> str | None:
@@ -42,6 +42,16 @@ COMPONENT_TYPE_TO_PARENTFIELD = {
 	"Deduction": "deductions",
 	"Employer Contribution": "employer_contributions",
 }
+
+
+def employee_welfare_fund_base(earnings, amount_field):
+	return sum(
+		flt(row.get(amount_field))
+		for row in earnings
+		if not row.get("statistical_component")
+		and not row.get("do_not_include_in_total")
+		and frappe.get_cached_value("Salary Component", row.salary_component, "include_in_ewf_base")
+	)
 
 
 COMPONENT_EVAL_GLOBALS = {

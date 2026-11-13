@@ -13,6 +13,7 @@ from hrms.payroll.doctype.salary_structure.salary_structure import validate_max_
 from hrms.payroll.utils import (
 	COMPONENT_EVAL_GLOBALS,
 	_safe_eval,
+	employee_welfare_fund_base,
 	get_component_eval_context,
 	sanitize_expression,
 	throw_error_message,
@@ -322,6 +323,7 @@ class SalaryStructureAssignment(Document):
 		rows_by_type["earnings"] = self._evaluate_component_table(
 			salary_structure.get("earnings") or [], data
 		)
+		data["ewf_base"] = employee_welfare_fund_base(rows_by_type["earnings"], "default_amount")
 
 		# Expose full-cycle gross_pay so deduction / employer-contribution formulas can
 		# reference it (e.g. PF, ESI), mirroring how the salary slip sets gross_pay after

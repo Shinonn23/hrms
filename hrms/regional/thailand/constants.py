@@ -15,7 +15,9 @@ SSO_EMPLOYEE = "Social Security (Employee)"
 SSO_EMPLOYER = "Social Security (Employer)"
 PVD_EMPLOYEE = "Provident Fund (Employee)"
 PVD_EMPLOYER = "Provident Fund (Employer)"
-STATUTORY_TYPES = (REGULAR_WAGE, INCOME_TAX, SSO_EMPLOYEE, SSO_EMPLOYER, PVD_EMPLOYEE, PVD_EMPLOYER)
+EWF_EMPLOYEE = "Employee Welfare Fund (Employee)"
+EWF_EMPLOYER = "Employee Welfare Fund (Employer)"
+STATUTORY_TYPES = (REGULAR_WAGE, INCOME_TAX, SSO_EMPLOYEE, SSO_EMPLOYER, PVD_EMPLOYEE, PVD_EMPLOYER, EWF_EMPLOYEE, EWF_EMPLOYER)
 
 # The payroll fields only HR Manager and Payroll Manager may read or write (permlevel 1 of Employee).
 PAYROLL_PERMLEVEL = 1
