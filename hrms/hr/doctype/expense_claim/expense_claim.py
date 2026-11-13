@@ -841,7 +841,8 @@ def get_expense_claim(employee_advance: str | dict) -> Document:
 		else None
 	)
 	expense_claim.cost_center = default_cost_center
-	expense_claim.is_paid = 1 if flt(employee_advance.paid_amount) else 0
+	# The advance is allocated in the Advances table; the claim is not "paid by the company" unless the user
+	# ticks Is Paid (it would need a Mode of Payment and fail the approver's submit).
 	get_expense_claim_advances(expense_claim, employee_advance)
 	return expense_claim
 
