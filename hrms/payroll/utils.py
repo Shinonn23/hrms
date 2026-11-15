@@ -96,6 +96,15 @@ def get_salary_slip_field_defaults() -> dict:
 	return defaults
 
 
+def get_component_eval_globals() -> dict:
+	"""The functions a salary component formula may call: COMPONENT_EVAL_GLOBALS plus those an app adds through
+	the hook ``payroll_formula_globals`` (dotted paths of functions returning a dict of name -> callable)."""
+	component_globals = COMPONENT_EVAL_GLOBALS.copy()
+	for path in frappe.get_hooks("payroll_formula_globals"):
+		component_globals.update(frappe.get_attr(path)() or {})
+	return component_globals
+
+
 def get_component_eval_context(employee: str, ssa_as_dict: dict) -> frappe._dict:
 	"""Build the base evaluation context for salary component formulas.
 
@@ -108,6 +117,10 @@ def get_component_eval_context(employee: str, ssa_as_dict: dict) -> frappe._dict
 	data.update(get_salary_slip_field_defaults())
 	data.update(ssa_as_dict)
 	data.update(frappe.get_cached_doc("Employee", employee).as_dict())
+	# an app may add values derived from the assignment (hook ``payroll_formula_context``: functions taking the
+	# context and updating it in place)
+	for path in frappe.get_hooks("payroll_formula_context"):
+		frappe.get_attr(path)(data)
 	return data
 
 

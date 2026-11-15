@@ -53,12 +53,12 @@ from hrms.payroll.doctype.salary_slip.salary_slip_loan_utils import (
 	set_loan_repayment,
 )
 from hrms.payroll.utils import (
-	COMPONENT_EVAL_GLOBALS,
 	COMPONENT_PARENTFIELDS,
 	SALARY_COMPONENT_VALUES,
 	_safe_eval,
 	employee_welfare_fund_base,
 	get_component_eval_context,
+	get_component_eval_globals,
 	throw_error_message,
 )
 from hrms.utils.holiday_list import (
@@ -79,7 +79,7 @@ HALF_DAY_HOLIDAY_FRACTION = 0.5
 class SalarySlip(TransactionBase):
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
-		self.whitelisted_globals = COMPONENT_EVAL_GLOBALS.copy()
+		self.whitelisted_globals = get_component_eval_globals()
 
 	@property
 	def default_series(self):
