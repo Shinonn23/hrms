@@ -34,6 +34,22 @@
   "provident_fund_rate",
   "provident_fund_column",
   "provident_fund_employer_rate",
+  "fixed_components_section",
+  "fixed_professional_license",
+  "fixed_housing",
+  "fixed_travel",
+  "fixed_special_travel",
+  "fixed_per_diem",
+  "fixed_mbo",
+  "fixed_commission",
+  "fixed_incentive",
+  "fixed_overtime",
+  "fixed_special_assistance",
+  "fixed_other_earning",
+  "fixed_components_column",
+  "fixed_student_loan",
+  "fixed_other_deduction",
+  "fixed_extra_tax",
   "opening_balances_section",
   "taxable_earnings_till_date",
   "column_break_20",
@@ -226,6 +242,116 @@
    "fieldname": "taxable_earnings_till_date",
    "fieldtype": "Currency",
    "label": "Taxable Earnings Till Date",
+   "non_negative": 1,
+   "options": "currency"
+  },
+  {
+   "collapsible": 1,
+   "collapsible_depends_on": "eval:doc.fixed_professional_license || doc.fixed_housing || doc.fixed_travel || doc.fixed_special_travel || doc.fixed_per_diem || doc.fixed_mbo || doc.fixed_commission || doc.fixed_incentive || doc.fixed_overtime || doc.fixed_special_assistance || doc.fixed_other_earning || doc.fixed_student_loan || doc.fixed_other_deduction || doc.fixed_extra_tax",
+   "description": "Amounts paid or deducted every month at the same value (Thailand). Leave blank when the amount changes each month: enter it through the Payroll Entry template instead.",
+   "fieldname": "fixed_components_section",
+   "fieldtype": "Section Break",
+   "label": "Fixed Monthly Components"
+  },
+  {
+   "fieldname": "fixed_professional_license",
+   "fieldtype": "Currency",
+   "label": "Professional License Allowance",
+   "non_negative": 1,
+   "options": "currency"
+  },
+  {
+   "fieldname": "fixed_housing",
+   "fieldtype": "Currency",
+   "label": "Housing Allowance",
+   "non_negative": 1,
+   "options": "currency"
+  },
+  {
+   "fieldname": "fixed_travel",
+   "fieldtype": "Currency",
+   "label": "Travel Allowance",
+   "non_negative": 1,
+   "options": "currency"
+  },
+  {
+   "fieldname": "fixed_special_travel",
+   "fieldtype": "Currency",
+   "label": "Special Travel Allowance",
+   "non_negative": 1,
+   "options": "currency"
+  },
+  {
+   "fieldname": "fixed_per_diem",
+   "fieldtype": "Currency",
+   "label": "Per Diem",
+   "non_negative": 1,
+   "options": "currency"
+  },
+  {
+   "fieldname": "fixed_mbo",
+   "fieldtype": "Currency",
+   "label": "MBO Specialist Pay",
+   "non_negative": 1,
+   "options": "currency"
+  },
+  {
+   "fieldname": "fixed_commission",
+   "fieldtype": "Currency",
+   "label": "Commission",
+   "non_negative": 1,
+   "options": "currency"
+  },
+  {
+   "fieldname": "fixed_incentive",
+   "fieldtype": "Currency",
+   "label": "Incentive Pay",
+   "non_negative": 1,
+   "options": "currency"
+  },
+  {
+   "fieldname": "fixed_overtime",
+   "fieldtype": "Currency",
+   "label": "Overtime",
+   "non_negative": 1,
+   "options": "currency"
+  },
+  {
+   "fieldname": "fixed_special_assistance",
+   "fieldtype": "Currency",
+   "label": "Special Assistance",
+   "non_negative": 1,
+   "options": "currency"
+  },
+  {
+   "fieldname": "fixed_other_earning",
+   "fieldtype": "Currency",
+   "label": "Other Earnings",
+   "non_negative": 1,
+   "options": "currency"
+  },
+  {
+   "fieldname": "fixed_components_column",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "fixed_student_loan",
+   "fieldtype": "Currency",
+   "label": "Student Loan (SLF) Deduction",
+   "non_negative": 1,
+   "options": "currency"
+  },
+  {
+   "fieldname": "fixed_other_deduction",
+   "fieldtype": "Currency",
+   "label": "Other Deductions",
+   "non_negative": 1,
+   "options": "currency"
+  },
+  {
+   "fieldname": "fixed_extra_tax",
+   "fieldtype": "Currency",
+   "label": "Extra Income Tax Withholding",
    "non_negative": 1,
    "options": "currency"
   },
