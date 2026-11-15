@@ -11,10 +11,10 @@ import hrms
 from hrms.payroll.doctype.payroll_period.payroll_period import get_payroll_period
 from hrms.payroll.doctype.salary_structure.salary_structure import validate_max_benefit_for_flexible_benefit
 from hrms.payroll.utils import (
-	COMPONENT_EVAL_GLOBALS,
 	_safe_eval,
 	employee_welfare_fund_base,
 	get_component_eval_context,
+	get_component_eval_globals,
 	sanitize_expression,
 	throw_error_message,
 )
@@ -453,12 +453,12 @@ class SalaryStructureAssignment(Document):
 			condition_met = True
 
 			try:
-				if condition and not _safe_eval(condition, COMPONENT_EVAL_GLOBALS.copy(), data):
+				if condition and not _safe_eval(condition, get_component_eval_globals(), data):
 					condition_met = False
 					default_amount = 0
 				elif struct_row.amount_based_on_formula and formula:
 					default_amount = flt(
-						_safe_eval(formula, COMPONENT_EVAL_GLOBALS.copy(), data),
+						_safe_eval(formula, get_component_eval_globals(), data),
 						struct_row.precision("amount"),
 					)
 				else:
