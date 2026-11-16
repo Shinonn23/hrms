@@ -307,7 +307,8 @@ def make_return_entry(
 
 	je = frappe.new_doc("Journal Entry")
 	je.posting_date = nowdate()
-	je.voucher_type = get_voucher_type(mode_of_payment)
+	# 17 Nov 2026: a bank account makes it a Bank Entry, not only a bank Mode of Payment
+	je.voucher_type = get_voucher_type(mode_of_payment, bank_cash_account.get("account_type"))
 	je.company = company
 	je.remark = "Return against Employee Advance: " + employee_advance_name
 	je.multi_currency = 1 if advance_account_currency != erpnext.get_company_currency(company) else 0
@@ -383,8 +384,8 @@ def get_same_currency_bank_cash_account(company, currency, mode_of_payment=None,
 	)
 
 
-def get_voucher_type(mode_of_payment=None):
-	voucher_type = "Cash Entry"
+def get_voucher_type(mode_of_payment=None, account_type=None):
+	voucher_type = "Bank Entry" if account_type == "Bank" else "Cash Entry"
 
 	if mode_of_payment:
 		mode_of_payment_type = frappe.get_cached_value("Mode of Payment", mode_of_payment, "type")
