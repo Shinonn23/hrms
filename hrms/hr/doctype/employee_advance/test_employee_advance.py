@@ -13,6 +13,7 @@ from hrms.hr.doctype.employee_advance.employee_advance import (
 	EmployeeAdvanceOverPayment,
 	create_return_through_additional_salary,
 	get_same_currency_bank_cash_account,
+	get_voucher_type,
 	make_return_entry,
 )
 from hrms.hr.doctype.expense_claim.expense_claim import get_advances, get_expense_claim
@@ -34,6 +35,11 @@ class TestEmployeeAdvance(HRMSTestSuite):
 		frappe.db.set_value("Account", "Employee Advances - _TC", "account_type", "Receivable")
 		frappe.db.set_value("Account", "_Test Employee Advance - _TC", "account_type", "Receivable")
 		frappe.db.set_value("Account", "Payroll Payable - _TC", "account_type", "Payable")
+
+	def test_return_entry_is_a_bank_entry_for_a_bank_account(self):
+		self.assertEqual(get_voucher_type(None, "Bank"), "Bank Entry")
+		self.assertEqual(get_voucher_type(None, "Cash"), "Cash Entry")
+		self.assertEqual(get_voucher_type(), "Cash Entry")
 
 	def test_paid_amount_and_status(self):
 		employee_name = make_employee("_T@employee.advance", "_Test Company")

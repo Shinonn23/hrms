@@ -166,7 +166,7 @@
   },
   {
    "allow_on_submit": 1,
-   "description": "Amount scheduled for deduction via salary",
+   "description": "Amount of this advance the employee has returned (by Journal Entry or through a salary deduction)",
    "fieldname": "return_amount",
    "fieldtype": "Currency",
    "label": "Returned Amount",
