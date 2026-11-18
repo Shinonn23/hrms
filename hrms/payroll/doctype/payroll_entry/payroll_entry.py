@@ -97,7 +97,8 @@ class PayrollEntry(Document):
 
 	def on_submit(self):
 		self.set_status(update=True, status="Submitted")
-		self.create_salary_slips()
+		# the slips made while the entry was a draft are its own: making the missing ones says nothing about them
+		self.create_salary_slips(notify_existing=False)
 
 	def validate_existing_salary_slips(self):
 		if not self.employees:
@@ -286,10 +287,11 @@ class PayrollEntry(Document):
 				employee.is_salary_withheld = 1
 
 	@frappe.whitelist(methods=["POST"])
-	def create_salary_slips(self, recalculate: bool = False) -> None:
+	def create_salary_slips(self, recalculate: bool = False, notify_existing: bool = True) -> None:
 		"""
 		Creates salary slip for selected employees if already not created.
 		With recalculate, the draft slips of this entry are deleted first and created again.
+		notify_existing=False leaves out the message naming the employees whose slips already exist (the submit).
 		"""
 		self.check_permission("write")
 		recalculate = bool(cint(recalculate))
@@ -310,6 +312,7 @@ class PayrollEntry(Document):
 					"payroll_entry": self.name,
 					"exchange_rate": self.exchange_rate,
 					"currency": self.currency,
+					"notify_existing": cint(notify_existing),
 				}
 			)
 			if len(employees) > 30 or frappe.flags.enqueue_payroll_entry:
@@ -1937,7 +1940,7 @@ def create_salary_slips_for_employees(employees, args, publish_progress=True, re
 			}
 		)
 
-		if salary_slips_exist_for:
+		if salary_slips_exist_for and cint(args.get("notify_existing", 1)):
 			frappe.msgprint(
 				_(
 					"Salary Slips already exist for employees {}, and will not be processed by this payroll."
