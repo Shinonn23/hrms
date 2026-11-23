@@ -58,6 +58,10 @@ def grant_payroll_field_permissions():
 	security ID). Only `after_install` calls it: a migrate must not give the rights again after a company's own policy
 	(the Role Profile flags `reads_employee_pay_fields` / `edits_employee_pay_fields`) narrowed them."""
 	for role in PAYROLL_ROLES:
+		if not frappe.db.exists("Role", role):
+			frappe.get_doc(
+				{"doctype": "Role", "role_name": role, "desk_access": 1, "is_custom": 1}
+			).insert(ignore_permissions=True, ignore_if_duplicate=True)
 		add_permission("Employee", role, PAYROLL_PERMLEVEL)
 		update_permission_property("Employee", role, PAYROLL_PERMLEVEL, "read", 1)
 		update_permission_property("Employee", role, PAYROLL_PERMLEVEL, "write", 1)
