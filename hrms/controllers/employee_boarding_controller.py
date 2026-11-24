@@ -193,7 +193,24 @@ class EmployeeBoardingController(Document):
 		return date
 
 	def assign_task_to_users(self, task, users):
+		# A submitted boarding document creates and assigns its own Task in one transaction.
+		# Keep the normal permissions check for any task outside that generated context.
+		generated = (
+			self.docstatus == 1
+			and task.doctype == "Task"
+			and task.project == self.project
+			and get_native_boarding_source(task) == (self.doctype, self.name)
+		)
 		for user in users:
+			if (
+				generated
+				and not frappe.get_system_settings("disable_document_sharing")
+				and not frappe.has_permission(doc=task, ptype="write", user=user)
+			):
+				# Give the intended assignee access to the generated activity, without sharing its HR source.
+				frappe.share.add_docshare(
+					task.doctype, task.name, user, write=1, flags={"ignore_share_permission": True}
+				)
 			args = {
 				"assign_to": [user],
 				"doctype": task.doctype,
@@ -201,7 +218,7 @@ class EmployeeBoardingController(Document):
 				"description": task.description or task.subject,
 				"notify": self.notify_users_by_email,
 			}
-			assign_to.add(args)
+			assign_to._add(args, ignore_permissions=generated)
 
 	def on_cancel(self):
 		# delete task project
@@ -263,7 +280,9 @@ def update_employee_boarding_status(project, event=None):
 	if employee_onboarding:
 		frappe.db.set_value("Employee Onboarding", employee_onboarding, "boarding_status", status)
 	elif employee_separation:
-		frappe.db.set_value("Employee Separation", employee_separation, "boarding_status", status)
+		separation = frappe.get_doc("Employee Separation", employee_separation)
+		if separation.boarding_status != status:
+			separation.db_set("boarding_status", status)
 
 
 def update_task(task, event=None):

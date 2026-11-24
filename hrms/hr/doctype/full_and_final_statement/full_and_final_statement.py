@@ -1,6 +1,8 @@
 # Copyright (c) 2021, Frappe Technologies Pvt. Ltd. and contributors
 # For license information, please see license.txt
 
+from collections import Counter
+
 import frappe
 from frappe import _
 from frappe.model.document import Document
@@ -57,20 +59,25 @@ class FullandFinalStatement(Document):
 				)
 
 	def validate_assets(self):
-		pending_returns = []
+		# A checked row is not evidence of receipt. Reconcile against submitted physical movements
+		# and account for every outstanding item, even if a draft row was removed.
+		outstanding = Counter(
+			(row["reference"], row["asset_name"]) for row in self.get_assets_movement()
+		)
+		for row in self.assets_allocated:
+			key = (row.reference, row.asset_name)
+			if row.action == "Recover Cost":
+				if not outstanding[key]:
+					frappe.throw(_("Asset {0} is no longer outstanding.").format(row.asset_name))
+				outstanding[key] -= 1
+				row.status = "Owned"
+			elif not outstanding[key]:
+				row.status = "Returned"
 
-		for data in self.assets_allocated:
-			if data.action == "Return":
-				if data.status == "Owned":
-					pending_returns.append(_("Row {0}: {1}").format(data.idx, frappe.bold(data.asset_name)))
-			elif data.action == "Recover Cost":
-				data.status = "Owned"
-
-		if pending_returns:
-			msg = _("All allocated assets should be returned before submission")
-			msg += "<br><br>"
-			msg += ", ".join(d for d in pending_returns)
-			frappe.throw(msg, title=_("Pending Asset Returns"))
+		if any(outstanding.values()):
+			message = _("All allocated assets should be returned before submission")
+			assets = ", ".join(frappe.bold(name) for (_, name), qty in outstanding.items() if qty)
+			frappe.throw(f"{message}<br><br>{assets}", title=_("Pending Asset Returns"))
 
 	@frappe.whitelist()
 	def get_outstanding_statements(self):
