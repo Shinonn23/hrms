@@ -236,8 +236,6 @@ frappe.ui.form.on("Payroll Entry", {
 	},
 
 	setup: function (frm) {
-		frm.add_fetch("company", "cost_center", "cost_center");
-
 		frm.set_query("payment_account", function () {
 			var account_types = ["Bank", "Cash"];
 			return {
@@ -318,21 +316,27 @@ frappe.ui.form.on("Payroll Entry", {
 	company: function (frm) {
 		frm.events.clear_employee_table(frm);
 		erpnext.accounts.dimensions.update_dimension(frm, frm.doctype);
-		frm.trigger("set_payable_account_and_currency");
+		return frm.trigger("set_payable_account_and_currency");
 	},
 
-	set_payable_account_and_currency: function (frm) {
-		frappe.db.get_value("Company", { name: frm.doc.company }, "default_currency", (r) => {
-			frm.set_value("currency", r.default_currency);
-		});
-		frappe.db.get_value(
-			"Company",
-			{ name: frm.doc.company },
+	set_payable_account_and_currency: async function (frm) {
+		const { company, cost_center } = frm.doc;
+		if (!company) return;
+
+		const { message } = await frappe.db.get_value("Company", company, [
+			"default_currency",
 			"default_payroll_payable_account",
-			(r) => {
-				frm.set_value("payroll_payable_account", r.default_payroll_payable_account);
-			},
-		);
+			"cost_center",
+		]);
+		if (frm.doc.company !== company || !message) return;
+
+		// The Company is already set, so validation uses its Cost Center filters.
+		const defaults = {
+			currency: message.default_currency,
+			payroll_payable_account: message.default_payroll_payable_account,
+		};
+		if (frm.doc.cost_center === cost_center) defaults.cost_center = message.cost_center;
+		await frm.set_value(defaults);
 	},
 
 	currency: function (frm) {
