@@ -15,9 +15,10 @@ from hrms.regional.thailand.constants import (
 
 
 def after_install():
-	"""The one time the payroll rights are given (Role Profile Authority Design 12.1)."""
+	"""Install regional defaults and provision payroll permissions on unmanaged sites."""
 	setup()
-	grant_payroll_field_permissions()
+	if not any(frappe.get_hooks("manages_employee_payroll_permissions")):
+		grant_payroll_field_permissions()
 
 
 def after_migrate():

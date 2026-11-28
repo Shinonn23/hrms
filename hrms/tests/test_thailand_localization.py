@@ -302,6 +302,8 @@ class TestMigrateWritesSchemaOnly(TestCase):
 			patch.object(thai_setup, "make_salutations"),
 			patch.object(frappe, "clear_cache"),
 			patch.object(frappe, "db", Mock(exists=Mock(return_value=False))),
+			patch.object(frappe, "get_hooks", return_value=[]),
+			patch.object(frappe, "get_doc"),
 		]
 		self.mocks = [item.start() for item in patches]
 		for item in patches:
@@ -329,8 +331,18 @@ class TestMigrateWritesSchemaOnly(TestCase):
 
 	def test_the_rights_are_given_once_at_install(self):
 		self.setup.after_install()
+		self.assertEqual(frappe.get_doc.return_value.insert.call_count, len(constants.PAYROLL_ROLES))
 		self.assertEqual(self.add_permission.call_count, len(constants.PAYROLL_ROLES))
 		self.assertEqual(self.update_permission.call_count, 2 * len(constants.PAYROLL_ROLES))
+
+	def test_a_managed_site_keeps_regional_defaults_without_bootstrap_rights(self):
+		frappe.get_hooks.return_value = [True]
+		self.setup.after_install()
+		frappe.get_hooks.assert_called_once_with("manages_employee_payroll_permissions")
+		self.assertEqual(self.make_setter.call_count, len(constants.PROPERTY_SETTERS))
+		self.setup.make_salutations.assert_called_once_with()
+		self.add_permission.assert_not_called()
+		self.update_permission.assert_not_called()
 
 	def test_the_hooks_run_the_migrate_and_install_entry_points(self):
 		self.assertIn("hrms.regional.thailand.setup.after_migrate", hooks.after_migrate)
